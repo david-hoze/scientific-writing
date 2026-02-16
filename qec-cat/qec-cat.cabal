@@ -1,0 +1,66 @@
+cabal-version: 3.0
+name:          qec-cat
+version:       0.1.0.0
+synopsis:      Quantum error correction resource estimation for biased-noise cat qubit architectures
+license:       BSD-3-Clause
+build-type:    Simple
+
+library
+  exposed-modules:
+    QEC.GF2
+  hs-source-dirs: src
+  build-depends:
+    base          >= 4.18 && < 5,
+    vector        >= 0.13,
+    primitive     >= 0.8,
+    deepseq       >= 1.4,
+    containers    >= 0.6,
+    mtl           >= 2.3,
+    random        >= 1.2,
+    splitmix      >= 0.1,
+    parallel      >= 3.2,
+    aeson         >= 2.1,
+    bytestring    >= 0.11,
+    cassava       >= 0.5,
+    text          >= 2.0
+  default-language: GHC2021
+  default-extensions:
+    StrictData
+    DerivingStrategies
+    GeneralizedNewtypeDeriving
+    ScopedTypeVariables
+    BangPatterns
+  ghc-options: -O2 -Wall
+
+test-suite tests
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
+  other-modules:
+    QEC.GF2.Test
+  build-depends:
+    base,
+    qec-cat,
+    tasty          >= 1.4,
+    tasty-quickcheck >= 0.10,
+    tasty-hunit    >= 0.10,
+    QuickCheck     >= 2.14,
+    vector
+  default-language: GHC2021
+  default-extensions:
+    StrictData
+    DerivingStrategies
+    ScopedTypeVariables
+    BangPatterns
+
+benchmark bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: bench
+  build-depends:
+    base,
+    qec-cat,
+    tasty-bench    >= 0.3,
+    vector,
+    deepseq
+  default-language: GHC2021
