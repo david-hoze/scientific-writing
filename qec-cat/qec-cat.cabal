@@ -10,6 +10,24 @@ library
     QEC.GF2
     QEC.GF2.Matrix
     QEC.GF2.Gauss
+    QEC.Symplectic
+    QEC.Code.CSS
+    QEC.Code.Repetition
+    QEC.Code.Surface
+    QEC.Code.LDPCCat
+    QEC.Noise
+    QEC.Noise.Depolarizing
+    QEC.Noise.Biased
+    QEC.Noise.CatQubit
+    QEC.Decoder.BP
+    QEC.Decoder.OSD
+    QEC.Stabilizer.Tableau
+    QEC.Simulation
+    QEC.Resource
+    QEC.Resource.Algorithm
+    QEC.Resource.MagicState
+    QEC.Resource.Layout
+    QEC.Export
   hs-source-dirs: src
   build-depends:
     base          >= 4.18 && < 5,
@@ -42,6 +60,17 @@ test-suite tests
     QEC.GF2.Test
     QEC.GF2.Matrix.Test
     QEC.GF2.Gauss.Test
+    QEC.Symplectic.Test
+    QEC.Code.CSS.Test
+    QEC.Code.Surface.Test
+    QEC.Code.LDPCCat.Test
+    QEC.Noise.Test
+    QEC.Decoder.BP.Test
+    QEC.Decoder.OSD.Test
+    QEC.Stabilizer.Tableau.Test
+    QEC.Simulation.Test
+    QEC.Resource.Test
+    QEC.Export.Test
   build-depends:
     base,
     qec-cat,
@@ -49,7 +78,10 @@ test-suite tests
     tasty-quickcheck >= 0.10,
     tasty-hunit    >= 0.10,
     QuickCheck     >= 2.14,
-    vector
+    vector,
+    random         >= 1.2,
+    aeson          >= 2.1,
+    bytestring     >= 0.11
   default-language: GHC2021
   default-extensions:
     StrictData
