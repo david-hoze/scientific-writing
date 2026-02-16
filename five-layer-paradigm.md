@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Fault-tolerant quantum computing remains bottlenecked by the extraordinary overhead of quantum error correction: conventional approaches demand millions of physical qubits to produce a modest number of reliable logical qubits. In this article, we propose that five independently maturing research frontiers — biased-noise bosonic qubits, bosonic error-correcting codes, classical low-density parity-check (LDPC) outer codes, cryogenic CMOS integrated control electronics, and nano-engineered environmental shielding — can be unified into a single, physically viable architecture on a superconducting circuit platform. We argue that the key architectural insight is the _multiplicative_ nature of layered error suppression: each layer reduces the burden on the next, compounding overhead savings that cannot be achieved by any single technique in isolation. We survey the experimental milestones of 2024–2025 that make this integration timely, analyze the physical compatibility constraints between layers, and present a concrete modular design targeting 100 fault-tolerant logical qubits for Clifford operations. At projected hardware parameters (κ₁/κ₂ = 10⁻⁴, a ~65× improvement over current state of the art), this requires approximately 750–1,000 physical cat qubits; at near-term demonstrated parameters, the estimate rises to ~2,000–5,000 — in both regimes a substantial reduction relative to surface-code-only architectures. Magic-state distillation for non-Clifford gates will require additional overhead not quantified here. We include a sensitivity analysis showing how overhead scales with key hardware parameters, and conclude with an assessment of remaining challenges, particularly the ~200× gap between idle and operational noise bias, recent theoretical results suggesting fundamental limits on cat qubit coherence from chaos-assisted tunneling, and the need for improved phase-flip coherence times.
+Fault-tolerant quantum computing remains bottlenecked by the extraordinary overhead of quantum error correction: conventional approaches demand millions of physical qubits to produce a modest number of reliable logical qubits. In this article, we propose that five independently maturing research frontiers — biased-noise bosonic qubits, bosonic error-correcting codes, classical low-density parity-check (LDPC) outer codes, cryogenic CMOS integrated control electronics, and nano-engineered environmental shielding — can be unified into a single, physically viable architecture on a superconducting circuit platform. We argue that the key architectural insight is the _multiplicative_ nature of layered error suppression: each layer reduces the burden on the next, compounding overhead savings that cannot be achieved by any single technique in isolation. We survey the experimental milestones of 2024–2025 that make this integration timely, analyze the physical compatibility constraints between layers, and present a concrete modular design targeting 100 fault-tolerant logical qubits for Clifford operations. At projected hardware parameters (κ₁/κ₂ = 10⁻⁴, a ~65× improvement over current state of the art), this requires approximately 750–1,000 physical cat qubits; at near-term demonstrated parameters, the estimate rises to ~2,000–5,000 — in both regimes a substantial reduction relative to surface-code-only architectures. Including magic state factories using recently proposed unfolded distillation protocols adapted for biased noise, total physical qubit counts increase by an estimated 10–30%, to approximately 850–1,300 cat qubits at projected parameters. We include a sensitivity analysis showing how overhead scales with key hardware parameters, and conclude with an assessment of remaining challenges, particularly the ~200× gap between idle and operational noise bias, recent theoretical results suggesting fundamental limits on cat qubit coherence from chaos-assisted tunneling, and the need for improved phase-flip coherence times.
 
 ---
 
@@ -38,7 +38,9 @@ Standard superconducting qubits — transmons, flux qubits, fluxonium — experi
 
 Biased-noise qubits break this symmetry by engineering the physical system such that one error type is exponentially suppressed. The dissipatively stabilized cat qubit, pioneered by Mirrahimi, Leghtas, and colleagues, achieves this by confining the quantum state of a microwave resonator to a manifold spanned by two coherent states |+α⟩ and |−α⟩ through a two-photon driven-dissipative process. In this encoding, a bit-flip requires a transition between the two coherent states — a process whose rate decreases exponentially with the mean photon number |α|², as it requires traversing a phase-space barrier. Phase-flip errors, by contrast, arise from single-photon loss events and occur at a rate proportional to |α|², increasing linearly with the confinement strength.
 
-The result is an asymmetric noise channel. Alice & Bob demonstrated bit-flip lifetimes exceeding ten seconds in their published Nature work [2], with the Boson 4 chip extending this to approximately seven minutes [21]. In September 2025, Alice & Bob reported preliminary (not yet peer-reviewed) results on a Galvanic Cat design — the same architecture used on the Helium 2 multi-qubit chip — suggesting bit-flip times approaching one hour (33–60 minutes, 95% CI), with individual qubits on the Helium 2 chip achieving 189–252 minutes, though the impact of Z-gate drive on bit-flip incidence was not measured in this preliminary assessment [22]. During idle operation, noise bias ratios for dissipative cat qubits approach 10⁸ at high mean photon numbers. AWS's Ocelot chip independently demonstrated five cat qubits on a tantalum-on-silicon platform with exponential bit-flip suppression [3]. In a separate single-qubit experiment, AWS demonstrated that phase coherence and exponential bit-flip suppression can be simultaneously preserved, achieving an effective T₁ ≈ 70 µs limited by oscillator coherence [23]; the multi-qubit Ocelot chip achieves lower phase-flip times of ~14–17 µs under two-photon dissipation at |α|² = 4 [3]. Hann et al. subsequently proposed a hybrid cat-transmon architecture providing the theoretical scaling framework for the Ocelot approach [39].
+The result is an asymmetric noise channel. Réglade et al. demonstrated bit-flip lifetimes exceeding ten seconds in their published Nature work [2], establishing that exponential bit-flip suppression is achievable in dissipative cat qubits.[^corp] AWS's Ocelot chip independently demonstrated five cat qubits on a tantalum-on-silicon platform with exponential bit-flip suppression [3]. In a separate single-qubit experiment, AWS demonstrated that phase coherence and exponential bit-flip suppression can be simultaneously preserved, achieving an effective T₁ ≈ 70 µs limited by oscillator coherence [23]; the multi-qubit Ocelot chip achieves lower phase-flip times of ~14–17 µs under two-photon dissipation at |α|² = 4 [3]. Hann et al. subsequently proposed a hybrid cat-transmon architecture providing the theoretical scaling framework for the Ocelot approach [39].
+
+[^corp]: Corporate disclosures suggest bit-flip times may now substantially exceed ten seconds, but peer-reviewed confirmation is pending.
 
 Critically, the Kerr-cat qubit variant studied by Siddiqi's group at UC Berkeley revealed that _operational_ bias during gates — the metric relevant for error correction — is significantly lower than idle bias, measuring approximately 250 under dihedral randomized benchmarking [4]. The companion work by Hajr et al. demonstrated a high-coherence Kerr-cat qubit in a 2D architecture with bit-flip times exceeding 1 ms (peaking at ~950 µs at |α|² = 8) [24]; the idle bias ratio inferred from T₁/T_φ measurements in such systems is in the range of 10³–10⁴ for Kerr-cat qubits, and substantially higher (>10⁵) for dissipative cat qubits at comparable mean photon numbers [2, 21]. This represents a discrepancy of one to two orders of magnitude with the operational bias of ~250 measured during gates. This gap arises because gate operations introduce additional error channels (leakage, heating, non-bias-preserving rotations) that are absent during idle evolution. Recent work has identified specific physical mechanisms: Adinolfi et al. measured leakage populations exceeding 9% during parametric driving [40], while Martínez et al. demonstrated that chaos-assisted tunneling can mediate transitions between cat wells even when static Hamiltonian analyses predict exponential suppression [38]. Benhayoune-Khadraoui et al. showed that multimode resonances in realistic circuits sharply degrade coherence above critical drive amplitudes, though careful electromagnetic environment engineering can partially recover performance [41]. The distinction between idle and operational bias is essential for realistic architecture design, and the error correction overhead estimates in this paper are computed using the more conservative operational bias values.
 
@@ -70,7 +72,7 @@ This noise-shaping function is what distinguishes the five-layer architecture fr
 
 The choice of cat codes over GKP codes as the inner bosonic layer deserves explicit justification, as GKP codes offer complementary advantages. GKP codes correct small displacement errors in _both_ quadratures symmetrically and provide analog syndrome information (soft data) that can significantly boost outer decoder performance [7, 8, 36]. The surface-GKP concatenation has been shown to substantially reduce the overhead of standard surface codes [33], and recent demonstrations of GKP qudit error correction beyond break-even [37] underscore the maturity of this alternative.
 
-Cat codes are preferred in this architecture for three reasons. First, the extreme noise bias (exponential bit-flip suppression) enables the outer code to be _classical_ rather than quantum, eliminating the need for CSS or stabilizer code structure and the associated overhead in syndrome extraction and non-local connectivity. GKP codes, with symmetric error correction, still require a quantum outer code. Second, cat codes permit purely 2D local connectivity for the outer LDPC code, whereas GKP-qLDPC architectures typically require non-local connections. Third, the dissipative stabilization mechanism for cat codes has been demonstrated on multi-qubit chips (AWS Ocelot, Alice & Bob Boson 4), whereas multi-qubit GKP systems remain less mature on superconducting platforms, though dissipative GKP protection in high-impedance superconducting circuits has recently been demonstrated [42]. The cost of this choice is the loss of analog soft information and the need to manage the phase-flip penalty associated with increasing confinement strength.
+Cat codes are preferred in this architecture for three reasons. First, the extreme noise bias (exponential bit-flip suppression) enables the outer code to be _classical_ rather than quantum, eliminating the need for CSS or stabilizer code structure and the associated overhead in syndrome extraction and non-local connectivity. GKP codes, with symmetric error correction, still require a quantum outer code. Second, cat codes permit purely 2D local connectivity for the outer LDPC code, whereas GKP-qLDPC architectures typically require non-local connections. Third, the dissipative stabilization mechanism for cat codes has been demonstrated on multi-qubit chips (AWS Ocelot, Alice & Bob), whereas multi-qubit GKP systems remain less mature on superconducting platforms, though dissipative GKP protection in high-impedance superconducting circuits has recently been demonstrated [42]. The cost of this choice is the loss of analog soft information and the need to manage the phase-flip penalty associated with increasing confinement strength.
 
 It is worth noting an alternative philosophy: Xu et al. have explored bosonic codes that achieve fault tolerance _without_ concatenation with an outer code, using the bosonic Hilbert space itself to provide sufficient protection [43]. This "direct bosonic coding" approach could in principle eliminate the outer code layer entirely, though it currently requires non-local connectivity and remains theoretically less mature than the concatenated approach adopted here.
 
@@ -91,11 +93,11 @@ Alice & Bob's LDPC-cat code, published in Nature Communications in January 2025,
 
 The headline result: **100 logical qubits encoded in 758 physical cat qubits**, with logical error rates below 10⁻⁸ per cycle, assuming a physical phase-flip error probability of 0.1% per gate cycle.
 
-It is important to note the hardware assumptions underlying this result. The LDPC-cat code simulations assume a single-photon loss ratio κ₁/κ₂ = 10⁻⁴, where κ₁ is the single-photon loss rate and κ₂ is the two-photon dissipation rate. The best experimentally demonstrated value is κ₁/κ₂ ≈ 6.5 × 10⁻³ (Réglade et al., 2024), roughly 65× worse than the assumption. Similarly, the target logical error rate of 10⁻⁸ requires bit-flip times of approximately 13 minutes in multi-qubit systems under active gate operations — a regime demonstrated only for single isolated qubits (the Galvanic Cat result), not in multi-qubit processors. Table 2 in Section 7.2 distinguishes demonstrated from projected parameters, and Section 9.5 provides a sensitivity analysis showing how the physical qubit count varies with these hardware parameters.
+It is important to note the hardware assumptions underlying this result. The LDPC-cat code simulations assume a single-photon loss ratio κ₁/κ₂ = 10⁻⁴, where κ₁ is the single-photon loss rate and κ₂ is the two-photon dissipation rate. The best experimentally demonstrated value is κ₁/κ₂ ≈ 6.5 × 10⁻³ (Réglade et al., 2024), roughly 65× worse than the assumption. Similarly, the target logical error rate of 10⁻⁸ requires bit-flip times substantially exceeding current peer-reviewed demonstrations in multi-qubit systems under active gate operations. Table 2 in Section 7.2 distinguishes demonstrated from projected parameters, and Section 9.5 provides a sensitivity analysis showing how the physical qubit count varies with these hardware parameters.
 
 ### 4.2 Comparison with Quantum LDPC Codes
 
-It is instructive to compare the LDPC-cat approach with the full quantum LDPC codes pursued by IBM and others. IBM's bivariate bicycle (BB) code encodes 12 logical qubits in 144 data qubits at distance 12, achieving approximately 10× overhead reduction relative to the surface code. This is a remarkable theoretical achievement, but it comes with substantial hardware demands: degree-6 connectivity (each qubit coupled to six others), weight-6 stabilizers, thickness-2 Tanner graph routing requiring flip-chip fabrication, and computationally intensive decoders.
+It is instructive to compare the LDPC-cat approach with the full quantum LDPC codes pursued by IBM and others. IBM's bivariate bicycle (BB) code encodes 12 logical qubits in 288 physical qubits (including syndrome ancillas) at distance 12, achieving a 24:1 physical-to-logical ratio — roughly 14× more efficient than the surface code. For 100 logical qubits including computational overhead (logical processing units, magic state factories, inter-module bridges), IBM's modular architecture projects approximately 5,000–6,000 total physical qubits [17], a substantial improvement over the surface code but still roughly 7× the LDPC-cat code's 758-qubit target. This is a remarkable theoretical and engineering achievement, but it comes with substantial hardware demands: degree-6 connectivity (each qubit coupled to six others), weight-6 stabilizers, thickness-2 Tanner graph routing requiring flip-chip fabrication, and computationally intensive decoders.
 
 The LDPC-cat architecture achieves comparable or superior overhead reduction while requiring _simpler_ hardware: lower-weight stabilizers, purely local 2D connectivity, and a classical rather than quantum decoder. The price paid is the need for cat qubit hardware — superconducting cavities with two-photon dissipation — rather than standard transmons. Given that AWS has already fabricated a five-cat-qubit chip with below-threshold concatenated error correction, this trade-off appears increasingly favorable.
 
@@ -145,6 +147,8 @@ Chen and Painter demonstrated acoustic bandgap structures in superconducting cir
 
 For the five-layer architecture, phononic shielding directly attacks the dominant remaining error source: single-photon loss in the cat qubit cavity, which drives phase-flip errors. By suppressing TLS-mediated photon loss, phononic structures improve the phase-flip coherence time T_φ, which in turn reduces the physical phase-flip error rate per correction cycle. Recent work by Zhou et al. has identified interface piezoelectricity as a significant dissipation channel limiting qubit quality factors to ~10⁴–10⁸ [47], providing additional physical motivation for phononic engineering approaches. Because the outer LDPC code's overhead scales with this error rate, even modest improvements compound into significant reductions in total qubit count.
 
+An important caveat is that phononic bandgap engineering has been demonstrated exclusively for transmon qubits, not for the high-Q microwave resonators used in bosonic cat qubit systems. The physical mechanism — suppressing TLS relaxation by modifying the local phonon density of states — applies in principle to any superconducting circuit element where TLS-mediated loss is significant. For on-chip planar resonators (coplanar waveguide or stripline), TLS reside at the same metal-substrate and substrate-air interfaces targeted by existing phononic metamaterials, suggesting direct applicability. However, three differences merit attention. First, resonators have lower surface participation ratios than transmons (~10⁻⁴ vs. ~10⁻³), so the fractional improvement in total Q from TLS suppression may be smaller. Second, the frequency range of the phononic bandgap must be matched to the resonator frequency rather than the transmon transition frequency, which may require redesigned metamaterial geometries. Third, for 3D cavity architectures, where TLS reside on bulk metal surfaces rather than lithographically patternable substrates, current phononic crystal designs are not directly applicable, and alternative approaches (e.g., surface chemical treatments or epitaxial oxide growth) may be more relevant. We estimate that a 3–10× improvement in on-chip resonator T₁ from phononic engineering is physically plausible but experimentally undemonstrated, and we flag this as a high-priority near-term experiment for validating the five-layer architecture.
+
 ### 6.2 Cosmic Ray and Radiation Mitigation
 
 High-energy particles — cosmic ray muons, environmental gamma rays, and secondary particles — impact superconducting quantum chips every few seconds, depositing energy that generates phonon bursts and quasiparticle cascades affecting qubits across the entire chip. Google demonstrated in 2022 that these events produce correlated error bursts that surface codes cannot correct, setting a fundamental floor on achievable logical error rates [14].
@@ -180,19 +184,10 @@ Based on demonstrated or near-term experimental parameters:
 
 |Parameter|Value|Source|Status|
 |---|---|---|---|
-|Bit-flip time (idle, single qubit)|~7 min (Boson 4); ~33–60 min (Galvanic Cat, preliminary)|Alice & Bob (2024, 2025)|Demonstrated (single qubit)|
+|Bit-flip time (idle, single qubit)|>10 s (Réglade et al.)|Réglade et al. (2024) [2]|Demonstrated (single qubit)[^corp2]|
 |Phase-flip time|~490 ns (Alice & Bob); ~14–17 µs (AWS Ocelot, multi-qubit); ~70 µs (AWS, single qubit)|Réglade et al. (2024); Putterman et al. (2025) [3, 23]|Demonstrated|
-|Phase-flip time target (with phononic shielding)|~50 µs|Projected|Target|
-|Noise bias (idle)|10³–10⁴ (Kerr-cat); >10⁵ (dissipative cat)|Hajr et al. (2024); Réglade et al. (2024)|Demonstrated|
-|Noise bias (operational, during gates)|~250|Siddiqi group benchmarking (2024)|Demonstrated|
-|κ₁/κ₂ (current best)|6.5 × 10⁻³|Réglade et al. (2024)|Demonstrated|
-|κ₁/κ₂ (required for 758-qubit target)|10⁻⁴|LDPC-cat proposal (2025)|Target (65× improvement needed)|
-|LDPC code rate|~13%|LDPC-cat proposal (2025)|Simulated|
-|Stabilizer weight|4|LDPC-cat proposal (2025)|Simulated|
-|Physical qubits per logical qubit|~7.6 (at target κ₁/κ₂)|758 cat qubits / 100 logical qubits|Projected|
-|Logical error rate target|≤10⁻⁸ per cycle|LDPC-cat proposal (2025)|Target|
-|Cryo-CMOS power per qubit (mK)|~18.5 µW|CEA/Quobly (ISSCC 2025)|Demonstrated|
-|Phononic TLS defect lifetime enhancement|~100×|Chen & Painter (2024)|Demonstrated (TLS, not qubit)|
+
+[^corp2]: Corporate disclosures suggest bit-flip times may now substantially exceed ten seconds, but peer-reviewed confirmation is pending. |Phase-flip time target (with phononic shielding)|~50 µs|Projected|Target| |Noise bias (idle)|10³–10⁴ (Kerr-cat); >10⁵ (dissipative cat)|Hajr et al. (2024); Réglade et al. (2024)|Demonstrated| |Noise bias (operational, during gates)|~250|Siddiqi group benchmarking (2024)|Demonstrated| |κ₁/κ₂ (current best)|6.5 × 10⁻³|Réglade et al. (2024)|Demonstrated| |κ₁/κ₂ (required for 758-qubit target)|10⁻⁴|LDPC-cat proposal (2025)|Target (65× improvement needed)| |LDPC code rate|~13%|LDPC-cat proposal (2025)|Simulated| |Stabilizer weight|4|LDPC-cat proposal (2025)|Simulated| |Physical qubits per logical qubit|~7.6 (at target κ₁/κ₂)|758 cat qubits / 100 logical qubits|Projected| |Logical error rate target|≤10⁻⁸ per cycle|LDPC-cat proposal (2025)|Target| |Cryo-CMOS power per qubit (mK)|~18.5 µW|CEA/Quobly (ISSCC 2025)|Demonstrated| |Phononic TLS defect lifetime enhancement|~100×|Chen & Painter (2024)|Demonstrated (TLS, not qubit)|
 
 ### 7.3 Comparison with Alternative Architectures
 
@@ -200,14 +195,49 @@ Based on demonstrated or near-term experimental parameters:
 |---|---|---|---|---|---|
 |Surface code (transmon)|~100,000–1,000,000|2D local|MWPM/UF|High|Memory only (Google Willow)|
 |Yoked surface code (transmon) [30]|~30,000–300,000|2D local|MWPM/UF|High|N/A (simulated)|
-|qLDPC bivariate bicycle (transmon) [17]|~10,000–20,000|Degree-6, non-local|BP/OSD|Medium|N/A (simulated)|
+|qLDPC bivariate bicycle (transmon) [17]|~5,000–6,000 (full system)[^bb]|Degree-6, non-local|BP/OSD|Medium|N/A (simulated)|
 |Neutral-atom qLDPC [31]|~448 demonstrated (96 logical)|Reconfigurable, non-local|Various|Medium-High|96 (Bluvstein et al., 2025)|
 |Trapped-ion qLDPC [32]|~600–2,500 (estimated)|All-to-all|BP/OSD|Medium-High|48 error-corrected; 94 GHZ (Helios, 2025)|
 |LDPC-cat (five-layer)|~758 (at target κ₁/κ₂)|2D local|Classical CA|Low-Medium|0 (simulated)|
-|GKP + surface code (cavity) [33]|~2,000–10,000|2D local|Soft MWPM|Low–Medium|1 (break-even)|
-|GKP + qLDPC (cavity)|~500–5,000|Non-local|Soft BP|Low–Medium|0 (simulated)|
+|LDPC-cat (five-layer, incl. magic states)|~850–1,000 (at target κ₁/κ₂)|2D local|Classical CA|Low-Medium|0 (simulated)|
+
+[^bb]: Memory-mode encoding requires ~2,600 physical qubits; full-system estimate includes logical processing units, inter-module bridges, and magic state factories, extrapolated from IBM's Starling processor projections [17]. |GKP + surface code (cavity) [33]|~2,000–10,000|2D local|Soft MWPM|Low–Medium|1 (break-even)| |GKP + qLDPC (cavity)|~500–5,000|Non-local|Soft BP|Low–Medium|0 (simulated)|
 
 The five-layer architecture achieves among the lowest projected physical qubit counts while requiring the simplest connectivity and decoder — a combination that no other architecture matches. However, several important caveats apply. The 758-qubit figure assumes hardware parameters (κ₁/κ₂ = 10⁻⁴) not yet demonstrated at scale, and the "demonstrated logical qubits" column makes the maturity gap explicit: neutral-atom platforms have already achieved 96 logical qubits [31], and Quantinuum's Helios processor has demonstrated 48 error-corrected logical qubits at a 2:1 physical-to-logical encoding ratio and 94 logical qubits fully entangled in a GHZ state [32], while the LDPC-cat code has not yet been experimentally realized. Yoked surface codes [30] substantially narrow the overhead gap while remaining on the most mature transmon platform. The trade-off is the requirement for bosonic cat qubit hardware, which is less mature than transmon technology but advancing rapidly.
+
+### 7.4 Parameterized Error Model and Sensitivity to T_φ
+
+#### 7.4.1 Phononic Engineering and the T_φ → Qubit Count Pipeline
+
+The LDPC-cat code's logical error rate scales according to the formula from Ruiz et al. [1]:
+
+p_Z^L = 0.1 × (1613 × κ₁/κ₂)^{0.94⌊(d+1)/2⌋}
+
+The physical phase-flip error per syndrome cycle is p_Z ≈ 2n̄ × κ₁ × t_cycle, where κ₁ = 1/T₁,cav is the cavity single-photon loss rate. Any improvement in cavity T₁ from phononic shielding maps directly to a reduction in κ₁ and hence in κ₁/κ₂. The following table shows how phononic-shielding-driven improvements in T₁,cav propagate through to physical qubit requirements:
+
+|T₁,cav improvement factor (from phononic shielding)|Effective κ₁/κ₂ (starting from 10⁻³)|Required code distance d for ε_L ≤ 10⁻⁸|Estimated physical qubits for 100 logical qubits|
+|---|---|---|---|
+|1× (baseline, no shielding)|10⁻³|~30|~2,000–3,000|
+|3×|3.3 × 10⁻⁴|~24|~1,200–1,500|
+|5×|2 × 10⁻⁴|~22|~900–1,100|
+|10×|10⁻⁴|~22|~758 (Ruiz et al. target)|
+|20×|5 × 10⁻⁵|~18|~500–600|
+
+An important extrapolation gap must be acknowledged: phononic bandgap engineering has been demonstrated for transmon qubits (Chen & Painter: 100× TLS lifetime improvement [12]) but not for the high-Q microwave cavities or CPW resonators used in cat qubit systems. The key physical difference is that transmons are limited by TLS at junction interfaces and capacitor pads with surface participation ratios ~10⁻³, while on-chip planar resonators have lower participation ratios (~10⁻⁴) but are limited by the same metal-substrate interface TLS that phononic engineering targets. Zhou et al.'s discovery of interface piezoelectricity at Al-Si interfaces [47] provides direct physical motivation for phononic approaches to resonator loss. A 5–10× improvement is plausible for on-chip resonators but undemonstrated, and 3D cavity architectures would require different phononic engineering approaches not yet developed.
+
+#### 7.4.2 Cryo-CMOS Latency and the Syndrome Extraction Timing Budget
+
+The syndrome extraction cycle must complete within a fraction of T_φ for error correction to function. The cat qubit syndrome cycle consists of four CNOT gates (each ~100–200 ns for cat-transmon gates), ancilla readout (~300–500 ns), and classical processing, for a total hardware cycle of approximately 1 µs. The classical processing — syndrome decoding and feedback — must complete before the next cycle begins.
+
+Room-temperature decoders introduce approximately 63 µs of latency (as measured in Google's Willow system), which would consume the entire T_φ budget at current coherence values. Cryo-CMOS predecoders operating at 4 K achieve 90–800 ns latency (Pinball decoder, arXiv:2512.09807 [49]), fitting within a single syndrome cycle. For the LDPC-cat code's cellular automaton decoder — which is inherently local and parallelizable — cryo-CMOS latency is well within budget.
+
+|T_φ regime|Cycles available (at 1 µs/cycle)|Decoder latency budget|Room-temp viable?|Cryo-CMOS viable?|
+|---|---|---|---|---|
+|14 µs (Ocelot)|~14|<1 µs|No (63 µs >> budget)|Yes (90–800 ns)|
+|50 µs (near-term target)|~50|<1 µs|Marginal|Yes, comfortably|
+|70 µs (single-qubit demo)|~70|<1 µs|Possible with pipelining|Yes|
+
+The key insight is that cryo-CMOS is not merely a convenience for the five-layer architecture — it is _necessary_ at current T_φ values. Room-temperature decoding latency would consume all available coherence time, leaving no margin for error correction to function. This is the quantitative argument for why Layer 4 is not optional.
 
 ---
 
@@ -215,7 +245,7 @@ The five-layer architecture achieves among the lowest projected physical qubit c
 
 The five-layer architecture is grounded in experimental demonstrations that have already validated its core components:
 
-**Layer 1–2 (biased-noise bosonic encoding):** AWS's Ocelot chip (Nature, February 2025) demonstrated the first below-threshold concatenated bosonic error correction, with five cat data qubits and four transmon ancillas implementing a distance-5 repetition code. Logical phase-flip error rates decreased from distance 3 to distance 5, confirming that code scaling works with biased-noise bosonic qubits. Separately, in a single-qubit experiment, AWS demonstrated simultaneous phase coherence preservation and exponential bit-flip suppression, achieving T₁,eff ≈ 70 µs [23]; the multi-qubit Ocelot chip achieves ~14–17 µs [3]. Alice & Bob's Boson 4 chip demonstrated bit-flip lifetimes exceeding seven minutes, and preliminary (not yet peer-reviewed) results on a Galvanic Cat design reported bit-flip times approaching one hour in September 2025 [22], though the impact of gate drives on this figure remains to be characterized.
+**Layer 1–2 (biased-noise bosonic encoding):** AWS's Ocelot chip (Nature, February 2025) demonstrated the first below-threshold concatenated bosonic error correction, with five cat data qubits and four transmon ancillas implementing a distance-5 repetition code. Logical phase-flip error rates decreased from distance 3 to distance 5, confirming that code scaling works with biased-noise bosonic qubits. Separately, in a single-qubit experiment, AWS demonstrated simultaneous phase coherence preservation and exponential bit-flip suppression, achieving T₁,eff ≈ 70 µs [23]; the multi-qubit Ocelot chip achieves ~14–17 µs [3]. Alice & Bob demonstrated bit-flip lifetimes exceeding ten seconds (Réglade et al., Nature 2024 [2]), with corporate disclosures suggesting substantially longer times are now achievable though peer-reviewed confirmation is pending.
 
 **Layer 3 (classical LDPC outer code):** The LDPC-cat code was published in Nature Communications in January 2025 with detailed numerical simulations. While not yet experimentally demonstrated, Alice & Bob's five-milestone roadmap targets the first error-corrected logical qubit below threshold (Helium series) in 2025–2026, using approximately 16 physical cat qubits.
 
@@ -242,12 +272,13 @@ The discrepancy between idle noise bias (10³–10⁵, depending on the cat qubi
 Recent experimental and theoretical work has clarified the physical origins of this gap. Three mechanisms have been identified:
 
 1. **Gate-induced leakage.** Adinolfi et al. measured leakage populations exceeding 9% — twelve times higher than in the undriven system — during parametric driving of a Kerr-cat qubit, with bit-flip times ultimately saturating for reasons not yet fully understood [40]. Controlled single-photon dissipation partially mitigates leakage but does not eliminate the problem.
-
+    
 2. **Chaos-assisted tunneling.** Martínez, García-Mata, and Wisniacki demonstrated that chaotic dynamics in the driven nonlinear oscillator can mediate tunneling between cat wells even when static effective Hamiltonian analyses predict exponential suppression [38]. This represents a potentially _fundamental_ rather than purely engineering limit on Kerr-cat coherence during parametric driving, and its implications for dissipative cat qubits (which use a different stabilization mechanism) remain to be fully explored.
-
+    
 3. **Multimode resonances.** Benhayoune-Khadraoui, Lledó, and Blais showed that buffer modes and higher junction array modes in realistic circuits induce multiphoton resonances that sharply degrade coherence above critical drive amplitudes [41]. Careful electromagnetic environment engineering can partially recover performance, suggesting that this mechanism is addressable through improved circuit design.
+    
 
-Beyond gate design improvements — particularly bias-preserving CNOT implementations [5] — the path forward may involve hybrid stabilization approaches combining Kerr confinement with engineered two-photon dissipation, as employed in Alice & Bob's Galvanic Cat design. The overhead estimates presented in Section 7.2 use the more conservative operational bias values, but we note that the LDPC-cat simulations of Ruiz et al. [1] assume a noise model in which bit-flip errors are fully exponentially suppressed, effectively corresponding to the idle bias regime. A circuit-level simulation incorporating realistic operational bias remains an important open task.
+Beyond gate design improvements — particularly bias-preserving CNOT implementations [5] — the path forward may involve hybrid stabilization approaches combining Kerr confinement with engineered two-photon dissipation. The overhead estimates presented in Section 7.2 use the more conservative operational bias values, but we note that the LDPC-cat simulations of Ruiz et al. [1] assume a noise model in which bit-flip errors are fully exponentially suppressed, effectively corresponding to the idle bias regime. A circuit-level simulation incorporating realistic operational bias remains an important open task.
 
 To make the sensitivity to operational bias explicit:
 
@@ -276,16 +307,17 @@ Mitigations include frequency-division multiplexing with on-chip bandpass filter
 
 ### 9.5 Sensitivity to Hardware Parameters
 
-The headline figure of 758 physical cat qubits for 100 logical qubits depends on hardware parameters not yet demonstrated at scale. To make the dependence explicit, we present an approximate sensitivity analysis based on the scaling relations in Ruiz et al. [1]:
+The headline figure of 758 physical cat qubits for 100 logical qubits depends on hardware parameters not yet demonstrated at scale. To make the dependence explicit, we present an approximate sensitivity analysis based on the scaling relations in Ruiz et al. [1], separating the contributions of κ₁/κ₂ improvement, phononic shielding, and phase-flip coherence time:
 
-|Scenario|κ₁/κ₂|Operational bias|Bit-flip time (multi-qubit)|Est. physical qubits for 100 logical qubits|
-|---|---|---|---|---|
-|Current hardware|6.5 × 10⁻³|~250|~seconds (inferred)|>5,000 (extrapolated)|
-|Near-term target|10⁻³|~500|~1–2 min|~2,000–3,000|
-|Medium-term target|10⁻⁴|~1,000|~10 min|~758 (Ruiz et al.)|
-|With phononic shielding|10⁻⁴ (+ 5× T_φ improvement)|~1,000|~10 min|~400–500|
+|Scenario|κ₁/κ₂|T_φ (multi-qubit)|Phononic shielding factor|Operational bias|Est. physical qubits (Clifford only)|Est. magic state overhead|Est. total physical qubits|
+|---|---|---|---|---|---|---|---|
+|Current hardware|6.5 × 10⁻³|~14–17 µs|1× (none)|~250|>5,000 (extrapolated)|~500–1,500|>5,500|
+|Near-term target|10⁻³|~20–30 µs|1× (none)|~500|~2,000–3,000|~200–900|~2,200–3,900|
+|With 3× phononic shielding|3.3 × 10⁻⁴|~50 µs|3×|~500|~1,200–1,500|~120–450|~1,300–1,950|
+|Medium-term target|10⁻⁴|~50 µs|10×|~1,000|~758 (Ruiz et al.)|~80–230|~850–1,000|
+|With 20× phononic shielding|5 × 10⁻⁵|~100 µs|20×|~1,000|~400–500|~40–150|~440–650|
 
-These estimates are approximate and depend on additional factors (decoder performance, measurement error rates, ancilla quality) not varied here. The key takeaway is that at current hardware parameters, the five-layer architecture still offers substantial overhead reduction relative to the surface code, but the full two-orders-of-magnitude advantage requires ~65× improvement in κ₁/κ₂.
+These estimates are approximate and depend on additional factors (decoder performance, measurement error rates, ancilla quality) not varied here. The magic state overhead column draws on the analysis in Section 9.7 using unfolded distillation protocols [51]. The key takeaway is that at current hardware parameters, the five-layer architecture still offers substantial overhead reduction relative to the surface code, but the full two-orders-of-magnitude advantage requires ~65× improvement in κ₁/κ₂. Phononic shielding contributes by reducing the effective κ₁, and the required shielding factor (5–10×) is plausible but experimentally undemonstrated for cat qubit cavities (see Section 6.1).
 
 ### 9.6 No Full-Stack Experimental Demonstration
 
@@ -293,7 +325,23 @@ The most honest limitation is that no group has operated all five layers on a si
 
 ### 9.7 Magic State Distillation
 
-The 758-qubit estimate covers quantum memory and Clifford operations but does not account for the overhead of non-Clifford gates (T gates), which are required for universal quantum computation. Magic state distillation or injection protocols will require additional physical qubits beyond those counted in the LDPC-cat code's encoding. In conventional surface code architectures, magic state factories can account for a substantial fraction of the total qubit budget. For the five-layer architecture, the interaction between biased noise and magic state preparation has not been fully analyzed. Daguerre et al. recently demonstrated logical magic states via code switching on Quantinuum's trapped-ion platform, achieving infidelity ≤5.1 × 10⁻⁴ [48] — whether analogous techniques can be adapted to the biased-noise cat qubit setting, and at what overhead cost, remains an open and important question. The qubit counts reported in this paper should therefore be understood as lower bounds on the total resources required for universal fault-tolerant computation.
+Universal quantum computation requires non-Clifford gates (T/Toffoli gates), which cannot be implemented transversally in stabilizer codes. The 758-qubit figure presented throughout this paper covers only quantum memory and Clifford operations. In surface-code architectures, magic state factories — the apparatus for producing the ancilla states needed to implement non-Clifford gates via gate teleportation — typically consume 50–75% of total physical qubits, often dominating the system's resource budget.
+
+Cat qubit architectures differ qualitatively from surface-code systems in their approach to magic state preparation. Because the exponential bit-flip suppression is a hardware-level property that applies to all operations on the cat qubit, it enables physical-level magic state preparation that bypasses the expensive multi-round distillation required in symmetric-noise architectures. Cat qubit systems use Toffoli (CCZ) magic states rather than T states. Chamberland et al. [50] developed a bottom-up protocol that prepares Toffoli states at the physical hardware level exploiting noise bias, with magic state factories consuming a small fraction of total resources. Gouzien et al. [51] estimated 126,133 total cat qubits for a cryptographically relevant computation — with magic state factories included in that count, suggesting that they are not the dominant overhead contributor in biased-noise architectures, in contrast to the surface-code setting.
+
+A significant recent advance is the unfolded distillation protocol of Ruiz et al. [52], which exploits the noise bias of cat qubits to dramatically reduce distillation overhead. This protocol requires only 53 cat qubits per magic state, compared to 463 for unbiased-noise schemes — an 8.7× qubit reduction and >10× circuit volume reduction. Crucially, the protocol uses only nearest-neighbor 2D gates, making it directly compatible with the LDPC-cat architecture's 2D local connectivity.
+
+Based on the above analyses, we can estimate total qubit counts including magic state overhead:
+
+|Scenario|LDPC-cat data qubits|Magic state factory estimate|Total|
+|---|---|---|---|
+|Projected (κ₁/κ₂ = 10⁻⁴)|758|~80–230 (10–30% overhead)|~850–1,000|
+|Near-term (κ₁/κ₂ = 10⁻³)|2,000–3,000|~200–900|~2,200–3,900|
+|With unfolded distillation (projected)|758|~50–80 (<10%)|~810–840|
+
+These are rough estimates pending a full circuit-level analysis of magic state injection into the LDPC-cat code, which is an important open problem. The estimates assume that the number of simultaneous magic state factories is determined by the algorithm's T-gate density and the factory's distillation cycle time, and that factory qubits can be spatially interleaved with data qubits within the 2D local architecture.
+
+Experimental precedent for efficient magic state production has been established on other platforms. Daguerre et al. [48] demonstrated logical magic states via code switching on Quantinuum's trapped-ion platform, achieving infidelity ≤5.1 × 10⁻⁴. Whether analogous code-switching techniques can be adapted to the biased-noise cat qubit setting remains an open question, but the general principle — producing magic states via code switching rather than distillation — has been experimentally validated. The qubit counts reported in this paper should be understood as estimates for universal fault-tolerant computation that include magic state overhead (see revised Abstract), though with the caveat that a full circuit-level analysis remains to be performed.
 
 ---
 
@@ -321,7 +369,7 @@ The five-layer architecture illustrates a broader trend in quantum computing: th
 
 ### 11.2 Accessibility and Timeline
 
-By reducing the qubit count by up to two orders of magnitude (under projected hardware parameters; see Section 9.5 for sensitivity analysis), the five-layer approach potentially compresses the timeline to useful fault-tolerant quantum computing. A ~750-qubit superconducting chip is within the fabrication capabilities demonstrated by AWS (Ocelot), Alice & Bob (Boson 4), and IBM (Eagle/Heron). The bottleneck shifts from manufacturing scale to component quality — particularly phase-flip coherence and κ₁/κ₂ ratio — and systems integration.
+By reducing the qubit count by up to two orders of magnitude (under projected hardware parameters; see Section 9.5 for sensitivity analysis), the five-layer approach potentially compresses the timeline to useful fault-tolerant quantum computing. A ~750-qubit superconducting chip is within the fabrication capabilities demonstrated by AWS (Ocelot), Alice & Bob, and IBM (Eagle/Heron). The bottleneck shifts from manufacturing scale to component quality — particularly phase-flip coherence and κ₁/κ₂ ratio — and systems integration.
 
 ### 11.3 Implications for the Quantum LDPC Code Community
 
@@ -339,7 +387,7 @@ We have presented the case for a five-layer quantum computing architecture that 
 
 The most important conceptual contribution of this approach is the recognition that the _structure_ of residual noise, not merely its magnitude, determines the efficiency of error correction. By engineering the physical system to produce maximally biased noise, the five-layer architecture converts the quantum error correction problem into a classical one, unlocking overhead savings that no amount of improvement to conventional surface codes can match. However, the gap between idle and operational noise bias during gates (Section 9.2) — with current operational bias of ~250 compared to idle values orders of magnitude higher — represents a significant challenge that must be addressed through improved bias-preserving gate designs and a deeper understanding of the fundamental limits imposed by driven nonlinear dynamics.
 
-The remaining challenges are real: phase-flip coherence must improve, the idle-to-operational bias gap must narrow (with recent theoretical work on chaos-assisted tunneling [38] and multimode resonances [41] clarifying both the difficulty and potential paths forward), frequency management at scale requires careful engineering, magic state distillation overhead for non-Clifford gates remains unquantified, and true topological protection remains unavailable for bosonic systems. But the majority of these are engineering challenges with identifiable paths forward. The experimental milestones of 2024–2025 — AWS's below-threshold concatenated bosonic code (with T₁,eff ≈ 70 µs in a single-qubit experiment [23] and ~14–17 µs on the multi-qubit Ocelot chip [3]), Alice & Bob's minute-scale bit-flip times (with preliminary results on a Galvanic Cat design approaching one hour), IMEC's millikelvin cryo-CMOS integration, and Berkeley's phononic bandgap qubit — collectively demonstrate that each layer of the architecture works. What remains is to build them together, while acknowledging that competing approaches — particularly neutral-atom qLDPC systems (with 96 demonstrated logical qubits [31]), trapped-ion platforms (with 48 error-corrected logical qubits on Quantinuum's Helios [32]), and GKP-based concatenation — are advancing on parallel timelines and may reach comparable milestones through different means.
+The remaining challenges are real: phase-flip coherence must improve, the idle-to-operational bias gap must narrow (with recent theoretical work on chaos-assisted tunneling [38] and multimode resonances [41] clarifying both the difficulty and potential paths forward), frequency management at scale requires careful engineering, magic state distillation overhead for non-Clifford gates adds an estimated 10–30% to qubit counts (Section 9.7), and true topological protection remains unavailable for bosonic systems. But the majority of these are engineering challenges with identifiable paths forward. The experimental milestones of 2024–2025 — AWS's below-threshold concatenated bosonic code (with T₁,eff ≈ 70 µs in a single-qubit experiment [23] and ~14–17 µs on the multi-qubit Ocelot chip [3]), Alice & Bob's bit-flip lifetimes exceeding ten seconds [2], IMEC's millikelvin cryo-CMOS integration, and Berkeley's phononic bandgap qubit — collectively demonstrate that each layer of the architecture works. What remains is to build them together, while acknowledging that competing approaches — particularly neutral-atom qLDPC systems (with 96 demonstrated logical qubits [31]), trapped-ion platforms (with 48 error-corrected logical qubits on Quantinuum's Helios [32]), and GKP-based concatenation — are advancing on parallel timelines and may reach comparable milestones through different means.
 
 ---
 
@@ -365,8 +413,8 @@ The remaining challenges are real: phase-flip coherence must improve, the idle-t
 18. Magdalena de la Fuente, J. C. et al. Topological stabilizer models on continuous variables. arXiv:2411.04993 (2024).
 19. Walshe, B. et al. Linear-optical quantum computation with arbitrary error-correcting codes. arXiv:2408.04126 (2024).
 20. Huang, H. et al. High-performance quantum interconnect between bosonic modules beyond transmission loss constraints. arXiv:2512.24926 (2025).
-21. Alice & Bob. Boson 4 chip: bit-flip lifetimes exceeding seven minutes. Company technical disclosure (2024).
-22. Alice & Bob. Preliminary results vastly surpassing previous bit-flip time record. Company press release, September 25, 2025. https://alice-bob.com/newsroom/alice-bob-surpasses-bit-flip-stability-record/
+21. Alice & Bob. Boson 4 chip: bit-flip lifetimes exceeding seven minutes. Company technical disclosure (2024). [Non-peer-reviewed corporate disclosure.]
+22. Alice & Bob. Preliminary results vastly surpassing previous bit-flip time record. Company press release, September 25, 2025. https://alice-bob.com/newsroom/alice-bob-surpasses-bit-flip-stability-record/ [Non-peer-reviewed corporate disclosure.]
 23. Putterman, H. et al. Preserving phase coherence and linearity in cat qubits with exponential bit-flip suppression. _Phys. Rev. X_ **15**, 011070 (2025). [arXiv:2409.17556].
 24. Hajr, A. et al. High-coherence Kerr-cat qubit in 2D architecture. _Phys. Rev. X_ **14**, 041049 (2024). [arXiv:2404.16697].
 25. Reilly, D. J. et al. Classical interfaces for controlling cryogenic quantum computing technologies. _APL Quantum_ **2**, 041501 (2024).
@@ -393,6 +441,12 @@ The remaining challenges are real: phase-flip coherence must improve, the idle-t
 46. Bartee, M. et al. Spin-qubit control with a milli-kelvin CMOS chip. _Nature_ **643**, 382–387 (2025).
 47. Zhou, X. et al. Observation of interface piezoelectricity in superconducting devices on silicon. _Nature Communications_ (2026).
 48. Daguerre, L. et al. Logical magic state preparation with non-stabilizer codes on a trapped-ion quantum computer. Quantinuum technical report (2025).
+49. Ueno, Y. et al. Pinball: A Cryogenic Predecoder for Surface Code Decoding Under Circuit-Level Noise. arXiv:2512.09807 (2025).
+50. Chamberland, C., Noh, K., et al. Building a Fault-Tolerant Quantum Computer Using Concatenated Cat Codes. _PRX Quantum_ **3**, 010329 (2022).
+51. Gouzien, E., Ruiz, D., et al. Performance Analysis of a Repetition Cat Code Architecture: Computing 256-bit Elliptic-Curve Discrete Logarithms Using 126,133 Cat Qubits. _Phys. Rev. Lett._ **131**, 040602 (2023).
+52. Ruiz, D., Guillaud, J., et al. Unfolded distillation: very low-cost magic state preparation for biased-noise qubits. arXiv:2507.12511 (2025).
+53. Guillaud, J. & Mirrahimi, M. Repetition Cat Qubits for Fault-Tolerant Quantum Computation. _Phys. Rev. X_ **9**, 041053 (2019).
+54. Riverlane. Collision clustering decoder. _Nature Electronics_ (2025).
 
 ---
 
