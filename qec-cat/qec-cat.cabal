@@ -8,6 +8,7 @@ build-type:    Simple
 library
   exposed-modules:
     QEC.GF2
+    QEC.GF2.Matrix
   hs-source-dirs: src
   build-depends:
     base          >= 4.18 && < 5,
@@ -38,6 +39,7 @@ test-suite tests
   hs-source-dirs: test
   other-modules:
     QEC.GF2.Test
+    QEC.GF2.Matrix.Test
   build-depends:
     base,
     qec-cat,
