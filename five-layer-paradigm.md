@@ -14,7 +14,7 @@ Fault-tolerant quantum computing remains bottlenecked by the extraordinary overh
 
 The central challenge of quantum computing is not the construction of individual qubits — it is the protection of quantum information from environmental noise long enough to complete useful computations. Since Shor's pioneering work on quantum error correction (QEC) in 1995, the field has understood that fault-tolerant quantum computation is possible in principle, provided physical error rates fall below a threshold and sufficient redundancy is available. The practical question has always been: _how much redundancy?_
 
-For the surface code — the most studied and experimentally advanced QEC code — the answer is sobering. Achieving logical error rates of 10⁻¹² for cryptographically relevant algorithms is estimated to require on the order of 10⁶–10⁷ physical qubits per logical qubit, depending on the physical error rate. Google's Willow processor demonstrated below-threshold surface code operation in late 2024, a landmark achievement, yet the path from that demonstration to a machine with thousands of logical qubits remains daunting. The fundamental issue is that the surface code treats all errors as equally likely, correcting both bit-flip (X) and phase-flip (Z) errors symmetrically, and encodes only a single logical qubit per code instance with an encoding rate that diminishes as distance increases.
+For the surface code — the most studied and experimentally advanced QEC code — the answer is sobering. Achieving logical error rates of 10⁻¹² for cryptographically relevant algorithms is estimated to require on the order of 10³–10⁴ physical qubits per logical qubit, depending on the physical error rate and code distance. When accounting for thousands of logical qubits plus magic-state distillation factories, the total physical qubit count for a cryptographically relevant machine reaches 10⁶–10⁷. Google's Willow processor demonstrated below-threshold surface code operation in late 2024, a landmark achievement, yet the path from that demonstration to a machine with thousands of logical qubits remains daunting. The fundamental issue is that the surface code treats all errors as equally likely, correcting both bit-flip (X) and phase-flip (Z) errors symmetrically, and encodes only a single logical qubit per code instance with an encoding rate that diminishes as distance increases.
 
 This article proposes a different philosophy: rather than relying on a single, monolithic error correction code to handle arbitrary noise, we advocate for a _layered_ architecture in which multiple error suppression mechanisms operate at different levels of the system stack, each tailored to eliminate a specific class of errors. The key principle is that **each layer should reshape the residual noise into a form that the subsequent layer can correct most efficiently**, creating a multiplicative cascade of overhead savings.
 
@@ -38,7 +38,7 @@ Standard superconducting qubits — transmons, flux qubits, fluxonium — experi
 
 Biased-noise qubits break this symmetry by engineering the physical system such that one error type is exponentially suppressed. The dissipatively stabilized cat qubit, pioneered by Mirrahimi, Leghtas, and colleagues, achieves this by confining the quantum state of a microwave resonator to a manifold spanned by two coherent states |+α⟩ and |−α⟩ through a two-photon driven-dissipative process. In this encoding, a bit-flip requires a transition between the two coherent states — a process whose rate decreases exponentially with the mean photon number |α|², as it requires traversing a phase-space barrier. Phase-flip errors, by contrast, arise from single-photon loss events and occur at a rate proportional to |α|², increasing linearly with the confinement strength.
 
-The result is an asymmetric noise channel. Alice & Bob demonstrated bit-flip lifetimes exceeding one hour in their Boson 4 chip, with noise bias ratios approaching 10⁸ during idle operation. AWS's Ocelot chip independently demonstrated five cat qubits on a tantalum-on-silicon platform with exponential bit-flip suppression and a noise bias ratio of approximately 20,000:1. Critically, the Kerr-cat qubit variant studied by Siddiqi's group at UC Berkeley revealed that _operational_ bias during gates — the metric relevant for error correction — is significantly lower than idle bias, measuring approximately 250 under rigorous gate-set tomography. This distinction between idle and operational bias is essential for realistic architecture design.
+The result is an asymmetric noise channel. Alice & Bob demonstrated bit-flip lifetimes exceeding ten seconds in their published Nature work, with preliminary results on the Boson 4 chip suggesting bit-flip times approaching one hour (33–60 minutes, 95% CI), and noise bias ratios approaching 10⁸ during idle operation. AWS's Ocelot chip independently demonstrated five cat qubits on a tantalum-on-silicon platform with exponential bit-flip suppression and a noise bias ratio of approximately 20,000:1. Critically, the Kerr-cat qubit variant studied by Siddiqi's group at UC Berkeley revealed that _operational_ bias during gates — the metric relevant for error correction — is significantly lower than idle bias, measuring approximately 250 under dihedral randomized benchmarking. This distinction between idle and operational bias is essential for realistic architecture design.
 
 ### 2.2 Consequences for Error Correction
 
@@ -123,7 +123,7 @@ The distributed thermal architecture — heavy signal processing at 4 K where co
 
 Decoherence in superconducting qubits arises substantially from interactions with two-level system (TLS) defects at material interfaces — amorphous oxide layers, substrate surfaces, and junction barriers. These TLS defects couple to qubits both directly (via electric fields) and indirectly (via phonon emission and absorption). Phononic bandgap metamaterials — periodically patterned structures that forbid phonon propagation at specific frequencies — can suppress the phonon-mediated decoherence channel.
 
-Chen and Painter demonstrated acoustic bandgap structures in superconducting circuits that increased TLS relaxation times by two orders of magnitude, achieving T₁ values exceeding 5 milliseconds. Odeh and Sipahigil at UC Berkeley placed a transmon on a phononic bandgap metamaterial fabricated on silicon-on-insulator, observing non-Markovian relaxation dynamics — a direct signature of modified phonon density of states — and TLS lifetime extension to 34 µs inside the bandgap.
+Chen and Painter demonstrated acoustic bandgap structures in superconducting circuits that increased TLS defect relaxation times by two orders of magnitude, with strongly coupled TLS defects achieving T₁ values exceeding 5 milliseconds (compared to ~3 µs for the transmon qubit itself). This dramatic extension of TLS lifetimes indicates effective suppression of the phonon-mediated decoherence channel, though translating TLS lifetime improvements into proportional qubit coherence gains remains an active area of research. Odeh and Sipahigil at UC Berkeley placed a superconducting qubit on a phononic bandgap metamaterial fabricated on silicon-on-insulator, observing non-Markovian relaxation dynamics — a direct signature of modified phonon density of states — and TLS lifetime extension to 34 µs inside the bandgap.
 
 For the five-layer architecture, phononic shielding directly attacks the dominant remaining error source: single-photon loss in the cat qubit cavity, which drives phase-flip errors. By suppressing TLS-mediated photon loss, phononic structures improve the phase-flip coherence time T_φ, which in turn reduces the physical phase-flip error rate per correction cycle. Because the outer LDPC code's overhead scales with this error rate, even modest improvements compound into significant reductions in total qubit count.
 
@@ -170,7 +170,7 @@ Based on demonstrated or near-term experimental parameters:
 |Physical qubits per logical qubit|~7.6|758 cat qubits / 100 logical qubits|
 |Logical error rate target|≤10⁻⁸ per cycle|LDPC-cat proposal (2025)|
 |Cryo-CMOS power per qubit (mK)|~18.5 µW|CEA/Quobly (ISSCC 2025)|
-|Phononic TLS lifetime enhancement|~100×|Chen & Painter (2024)|
+|Phononic TLS defect lifetime enhancement|~100×|Chen & Painter (2024)|
 
 ### 7.3 Comparison with Alternative Architectures
 
@@ -189,7 +189,7 @@ The five-layer architecture achieves the lowest physical qubit count while requi
 
 The five-layer architecture is grounded in experimental demonstrations that have already validated its core components:
 
-**Layer 1–2 (biased-noise bosonic encoding):** AWS's Ocelot chip (Nature, February 2025) demonstrated the first below-threshold concatenated bosonic error correction, with five cat data qubits and four transmon ancillas implementing a distance-5 repetition code. Logical phase-flip error rates decreased from distance 3 to distance 5, confirming that code scaling works with biased-noise bosonic qubits. Alice & Bob's Boson 4 chip demonstrated bit-flip lifetimes exceeding seven minutes, with preliminary results at the hour scale reported in September 2025.
+**Layer 1–2 (biased-noise bosonic encoding):** AWS's Ocelot chip (Nature, February 2025) demonstrated the first below-threshold concatenated bosonic error correction, with five cat data qubits and four transmon ancillas implementing a distance-5 repetition code. Logical phase-flip error rates decreased from distance 3 to distance 5, confirming that code scaling works with biased-noise bosonic qubits. Alice & Bob's Boson 4 chip demonstrated bit-flip lifetimes exceeding seven minutes, with preliminary results approaching one hour reported in September 2025.
 
 **Layer 3 (classical LDPC outer code):** The LDPC-cat code was published in Nature Communications in January 2025 with detailed numerical simulations. While not yet experimentally demonstrated, Alice & Bob's five-milestone roadmap targets the first error-corrected logical qubit below threshold (Helium series) in 2025–2026, using approximately 16 physical cat qubits.
 
@@ -245,7 +245,7 @@ This timeline is ambitious but consistent with Alice & Bob's published roadmap (
 
 ### 11.1 The End of the "More Qubits" Paradigm
 
-The five-layer architecture represents a conceptual shift in quantum computing: from the assumption that fault tolerance requires _more_ physical qubits to the recognition that _smarter_ qubits — aided by physics-level noise engineering and efficient coding — can achieve the same protection with dramatically fewer resources. A machine with ~750 cat qubits and 100 logical qubits is a fundamentally different engineering challenge from one with 20 million transmons and 200 logical qubits. The former fits in a single dilution refrigerator; the latter requires a data-center-scale cryogenic infrastructure that does not yet exist.
+The five-layer architecture represents a conceptual shift in quantum computing: from the assumption that fault tolerance requires _more_ physical qubits to the recognition that _smarter_ qubits — aided by physics-level noise engineering and efficient coding — can achieve the same protection with dramatically fewer resources. A machine with ~750 cat qubits and 100 logical qubits is a fundamentally different engineering challenge from a surface-code machine requiring hundreds of thousands to millions of transmons for the same logical capacity. The former fits in a single dilution refrigerator; the latter approaches a data-center-scale cryogenic infrastructure that does not yet exist.
 
 ### 11.2 Accessibility and Timeline
 
@@ -263,16 +263,16 @@ We have presented the case for a five-layer quantum computing architecture that 
 
 The most important conceptual contribution of this approach is the recognition that the _structure_ of residual noise, not merely its magnitude, determines the efficiency of error correction. By engineering the physical system to produce maximally biased noise, the five-layer architecture converts the quantum error correction problem into a classical one, unlocking overhead savings that no amount of improvement to conventional surface codes can match.
 
-The remaining challenges are real: phase-flip coherence must improve, frequency management at scale requires careful engineering, and true topological protection remains unavailable for bosonic systems. But these are engineering challenges with clear paths forward, not fundamental barriers. The experimental milestones of 2024–2025 — AWS's below-threshold concatenated bosonic code, Alice & Bob's hour-scale bit-flip times, IMEC's millikelvin cryo-CMOS integration, and Berkeley's phononic bandgap qubit — collectively demonstrate that each layer of the architecture works. What remains is to build them together.
+The remaining challenges are real: phase-flip coherence must improve, frequency management at scale requires careful engineering, and true topological protection remains unavailable for bosonic systems. But these are engineering challenges with clear paths forward, not fundamental barriers. The experimental milestones of 2024–2025 — AWS's below-threshold concatenated bosonic code, Alice & Bob's minute-scale bit-flip times (with preliminary results approaching one hour), IMEC's millikelvin cryo-CMOS integration, and Berkeley's phononic bandgap qubit — collectively demonstrate that each layer of the architecture works. What remains is to build them together.
 
 ---
 
 ## References
 
-1. Ruiz, D., Guillaud, J., Leverrier, A., Mirrahimi, M. & Vuillot, C. LDPC-cat codes for low-overhead quantum computing in 2D. _Nature Communications_ **16**, 957 (2025).
+1. Ruiz, D., Guillaud, J., Leverrier, A., Mirrahimi, M. & Vuillot, C. LDPC-cat codes for low-overhead quantum computing in 2D. _Nature Communications_ **16**, 1040 (2025).
 2. Réglade, U. et al. Quantum control of a cat qubit with bit-flip times exceeding ten seconds. _Nature_ **629**, 778–783 (2024).
-3. Lescanne, R. et al. (AWS). Hardware-efficient quantum error correction via concatenated bosonic qubits. _Nature_ **638**, 927–933 (2025).
-4. Qing, H. et al. Quantum benchmarking of high-fidelity noise-biased operations on a detuned-Kerr-cat qubit. arXiv:2411.04442 (2024).
+3. Putterman, H. et al. (AWS). Hardware-efficient quantum error correction via concatenated bosonic qubits. _Nature_ **638**, 927–934 (2025).
+4. Qing, H. et al. Quantum benchmarking of high-fidelity noise-biased operations on a detuned-Kerr-cat qubit. _PNAS_ **123**, e2520479123 (2026). [arXiv:2411.04442 (2024)].
 5. Puri, S. et al. Bias-preserving gates with stabilized cat qubits. _Science Advances_ **6**, eaay5901 (2020).
 6. Raveendran, N. et al. Finite rate QLDPC-GKP coding scheme that surpasses the CSS Hamming bound. _Quantum_ **6**, 767 (2022).
 7. Berent, L., Burkhard, L. & Locher, D. F. Analog information decoding of bosonic quantum LDPC codes. _PRX Quantum_ **5**, 020349 (2024).
@@ -281,7 +281,7 @@ The remaining challenges are real: phase-flip coherence must improve, frequency 
 10. Pando Tree. Intel Labs. IEEE VLSI Symposium (2024).
 11. Bardin, J. C. et al. Using cryogenic CMOS control electronics to enable a two-qubit cross-resonance gate. _PRX Quantum_ **5**, 010326 (2024).
 12. Chen, Y. & Painter, O. Phonon engineering of atomic-scale defects in superconducting quantum circuits. _Science Advances_ **10**, eado6240 (2024).
-13. Odeh, M. & Sipahigil, A. Non-Markovian dynamics of a superconducting qubit in a phononic bandgap. _Nature Physics_ **21**, 218–224 (2025).
+13. Odeh, M. & Sipahigil, A. Non-Markovian dynamics of a superconducting qubit in a phononic bandgap. _Nature Physics_ **21**, 406–411 (2025).
 14. McEwen, M. et al. Resolving catastrophic error bursts from cosmic rays in large arrays of superconducting qubits. _Nature Physics_ **18**, 107–111 (2022).
 15. Li, R. et al. Synchronous detection of cosmic rays and correlated errors in superconducting qubit arrays. _Nature Communications_ **16**, 4823 (2025).
 16. Xu, Q. et al. Constant-overhead fault-tolerant quantum computation with reconfigurable atom arrays. arXiv:2308.08648 (2023).
