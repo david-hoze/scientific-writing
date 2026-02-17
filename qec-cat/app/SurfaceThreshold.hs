@@ -60,10 +60,37 @@ main = do
     printf "  p = %.4f : %s\n" p ordering
     ) results
 
+  -- OSD-2 sanity check: run d=5 and d=7 both with OSD-2 to test
+  -- whether the missing d5/d7 crossing is due to unequal decoder power
+  putStrLn ""
+  putStrLn "OSD-2 sanity check (d=5 and d=7 both with OSD order 2):"
+  putStrLn "-------------------------------------------------------"
+  let osd2Points = [0.04, 0.06, 0.07, 0.08, 0.085, 0.09, 0.095, 0.10, 0.103]
+  printf "    p      d=5(w=2)  d=7(w=2)\n"
+  mapM_ (\p -> do
+    let r5 = runPointFixed 2 5 p
+        r7 = runPointFixed 2 7 p
+        tag | r5 >= r7  = "  d7 <= d5" :: String
+            | otherwise = "  d7 > d5"
+    printf "%7.4f   %8.4f  %8.4f %s\n" p r5 r7 tag
+    ) osd2Points
+
 runPoint :: Int -> Double -> Double
 runPoint d p =
   let code   = surfaceCode d
       osdOrd = (d - 1) `div` 2  -- OSD order matches code's correction capability
+      config = defaultSimConfig
+        { simNumTrials = numTrials
+        , simBPConfig  = defaultBPConfig { bpOsdOrder = osdOrd }
+        }
+      pEff   = 2.0 * p / 3.0
+      result = runCSSSimulation config code pEff pEff (baseSeed + fromIntegral d)
+  in logicalErrorRate result
+
+-- | Run a point with a fixed OSD order (for decoder-parity comparisons).
+runPointFixed :: Int -> Int -> Double -> Double
+runPointFixed osdOrd d p =
+  let code   = surfaceCode d
       config = defaultSimConfig
         { simNumTrials = numTrials
         , simBPConfig  = defaultBPConfig { bpOsdOrder = osdOrd }
