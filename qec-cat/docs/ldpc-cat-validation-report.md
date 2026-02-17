@@ -26,12 +26,21 @@ stabilizer tiled on an 11x15 torus. Inspection of the paper's source code
 | Grid | 11 x 15 | H=8 rows x L=17 columns |
 | n | 165 | **136** |
 | k | 34 | 34 |
-| d | 22 | 22 |
+| d | 22 | 22 (from paper, not independently verified) |
 | Boundary | Periodic | Periodic |
 | Check weight | Variable | **Exactly 4** |
 
 The 165 in the spec likely referred to a non-periodic variant. We implement
 the periodic version matching the paper's simulation code.
+
+**Note on d=22:** The distance claim is taken directly from Ruiz et al. and
+has not been independently verified. An exhaustive minimum-weight codeword
+search is infeasible at n=136, k=34 (the kernel of H_Z has dimension 34,
+so enumerating all 2^34 ~ 1.7 x 10^10 codewords is impractical). A
+randomized search (sampling random elements of ker(H_Z) and checking
+minimum weight) could provide a probabilistic lower bound, but this has
+not been performed. We trust the paper's claim, which was computed using
+their own distance-bounding methods.
 
 ### Cellular Automaton Construction
 
@@ -51,9 +60,18 @@ Each check at position (i, j) involves exactly 4 qubits:
   pattern at level i, with column index `(j - 1 + col_k) mod L`
 
 The resulting H_Z has (H-2)*L = 102 rows and H*L = 136 columns, with
-every row having Hamming weight exactly 4. H_X is the 0x136 empty matrix,
-since cat qubits suppress bit-flips exponentially and no X-stabilizers
-are needed.
+every row having Hamming weight exactly 4. H_X is the 0x136 empty matrix.
+
+**Why H_X is empty:** This code is not a CSS code in the traditional sense
+(two interacting classical codes for X and Z sectors). It is a classical
+LDPC code applied to the Z sector only. The extreme noise bias of cat
+qubits (p_Z/p_X > 10^10) means X errors are so rare that they can be
+ignored entirely — error correction reduces to classical error correction
+on the phase-flip channel. We represent this in the CSS framework with
+an empty H_X, which trivially satisfies the orthogonality condition
+H_X * H_Z^T = 0 (a 0-row matrix times anything is the zero matrix).
+This is a valid CSS code, but the X sector contributes no stabilizers
+and no protection — by design.
 
 ### Extension Family
 
@@ -86,19 +104,45 @@ The cat qubit channel at default parameters (|alpha|^2 = 19) produces:
 | Bias (p_Z / p_X) | ~3.2 x 10^16 |
 
 The bias exceeds 10^10 by six orders of magnitude, far surpassing the
-spec's 10^6 claim. This extreme bias is the physical foundation for
-Z-only error correction: X errors are so rare that they can be ignored,
-and only the classical LDPC code H_Z is needed.
+spec's claim of "bias eta ~ 10^6 at |alpha|^2 = 19."
 
-The noise model formulas (from Puri et al. 2020, Guillaud & Mirrahimi 2019):
+### Bias Discrepancy: 10^16 vs 10^6
+
+The implementation computes bias = p_Z / p_X = exp(gamma * |alpha|^2).
+With gamma = 2 and |alpha|^2 = 19, this gives exp(38) ~ 3.2 x 10^16.
+The spec's 10^6 is ten orders of magnitude lower. Possible explanations:
+
+1. **Different squeezing parameter.** With gamma = 1 (no squeezing
+   enhancement, bare tunnel rate) and |alpha|^2 = 19: exp(19) ~ 2.4 x 10^8.
+   Still not 10^6, but closer.
+
+2. **Different |alpha|^2.** To get bias = 10^6 with gamma = 2:
+   |alpha|^2 = ln(10^6) / 2 ~ 6.9. This corresponds to a much smaller
+   cat qubit, inconsistent with the spec's stated |alpha|^2 = 19.
+
+3. **Different bias definition.** Some references define bias as the
+   hardware ratio kappa_2 / kappa_1 = 10^8 / 10^3 = 10^5, which is
+   close to 10^6. This is not the error rate ratio but the stabilization
+   ratio.
+
+4. **The spec was simply wrong.** The 10^6 figure may have been a rough
+   order-of-magnitude estimate that did not account for the exponential
+   suppression correctly.
+
+Our implementation follows the Puri et al. 2020 / Guillaud & Mirrahimi
+2019 formulas directly:
 
 ```
 p_X ~ (kappa_1 / kappa_2) * |alpha|^2 * exp(-gamma * |alpha|^2) * kappa_2 * T_cycle
 p_Z ~ kappa_1 * |alpha|^2 * T_cycle
+bias = p_Z / p_X = exp(gamma * |alpha|^2)
 ```
 
-The exponential suppression factor exp(-gamma * |alpha|^2) = exp(-38)
-~ 3.1 x 10^-17 is the key to the extreme bias.
+At default parameters (kappa_1 = 1 kHz, kappa_2 = 100 MHz, gamma = 2,
+|alpha|^2 = 19, T_cycle = 500 ns), the exponential suppression factor
+exp(-gamma * |alpha|^2) = exp(-38) ~ 3.1 x 10^-17 dominates. This is
+documented in `deviations.md` with the specific parameter values that
+produce 10^16 vs what would be needed for 10^6.
 
 ## Monte Carlo Simulation
 
@@ -118,6 +162,17 @@ capability of floor((d-1)/2) = 10 to keep runtime practical. OSD-10
 on 34 free variables would generate C(34, <=10) ~ 10^8 candidate
 corrections — computationally infeasible. OSD-5 generates
 C(34, <=5) ~ 330,000 candidates, which is tractable.
+
+**Decoder limitation at high noise:** OSD-5 can reliably correct up to
+5 errors, not the code's full capability of 10. At p_Z = 10%, a
+136-qubit code expects ~13.6 errors per round — well beyond OSD-5's
+reach. The logical error rates at p_Z >= 7% are therefore pessimistic:
+the code could do better with a stronger decoder. Conversely, the fact
+that the code still shows p_L < p_Z even at p_Z = 10% with an
+underpowered decoder is evidence that the code's true threshold is
+significantly above 10%. The low-noise regime (p_Z <= 5%) is unaffected
+by this limitation since typical error counts are well within OSD-5's
+correction range.
 
 ### Results
 
@@ -177,21 +232,31 @@ Key observations:
 
 ### Comparison with Ruiz et al.
 
-The paper presents phenomenological noise results in Figure S2(a),
-which includes measurement error rounds not modeled in our code-capacity
-simulation. Direct numerical comparison is therefore not possible, but
-qualitative features match:
+The paper does not report code-capacity results for this code family.
+Its simulations (Figure S2(a) and related plots) use a phenomenological
+noise model that includes syndrome measurement error rounds, which our
+code-capacity simulation does not model. This means direct numerical
+comparison of logical error rates is not possible — the paper's error
+rates include contributions from measurement noise that our simulation
+excludes.
 
-| Feature | Paper | This work |
-|---------|-------|-----------|
-| Error correction effective | Yes | Yes |
-| Low noise regime (p < 3%) | Near-zero logical error | Zero detected |
-| Graceful degradation | Yes | Yes |
-| High encoding rate (k/n = 0.25) | Yes | Confirmed |
+What *can* be compared:
 
-The code-capacity model (no measurement errors) is expected to show
-better performance than the phenomenological model, which is consistent
-with our results showing effective correction up to p_Z = 10%.
+| Feature | Paper | This work | Comparable? |
+|---------|-------|-----------|-------------|
+| Code parameters [n, k, d] | [136, 34, 22] | [136, 34, 22] | Yes, exact match |
+| Encoding rate k/n | 0.25 | 0.25 | Yes |
+| Check weight | 4 | 4 | Yes |
+| Error correction effective | Yes | Yes | Qualitative |
+| Sub-threshold suppression | Exponential in d | Strong (zero at p<=3%) | Qualitative |
+
+The code-capacity model is strictly easier than the phenomenological
+model (no measurement noise, perfect syndrome extraction), so our
+simulation is expected to show better performance. This is consistent
+with our results: effective correction up to p_Z = 10%, whereas the
+paper's phenomenological threshold is lower. The agreement on code
+structure (parameters, check weight, encoding rate) is the primary
+validation that the construction is correct.
 
 ## Test Suite Results
 

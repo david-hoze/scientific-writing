@@ -79,6 +79,30 @@ configuration/config first (partial-application friendly):
 - `runSimulation`: spec has `CSSCode -> SimConfig -> IO SimResult`,
   implementation has `SimConfig -> CSSCode -> Double -> Word64 -> SimResult`.
 
+## Cat Qubit Bias: 10^16 vs Spec's 10^6
+
+**Spec:** "bias eta ~ 10^6 at |alpha|^2 = 19."
+
+**Implementation:** bias = p_Z / p_X = exp(gamma * |alpha|^2) = exp(2 * 19) = exp(38)
+~ 3.2 x 10^16 at default parameters.
+
+The ten-order-of-magnitude discrepancy arises because the implementation uses
+gamma = 2 (squeezing-enhanced suppression) following Puri et al. 2020. The spec's
+10^6 figure may have used a lower squeezing parameter, a different |alpha|^2, or
+a different bias definition (e.g., the hardware ratio kappa_2/kappa_1 = 10^5 rather
+than the error rate ratio). For reference:
+
+| gamma | \|alpha\|^2 | bias = exp(gamma * \|alpha\|^2) |
+|-------|-------------|-------------------------------|
+| 2.0   | 19          | 3.2 x 10^16 (implementation)  |
+| 1.0   | 19          | 2.4 x 10^8                    |
+| 2.0   | 6.9         | 1.0 x 10^6 (matches spec)     |
+| 0.73  | 19          | 1.0 x 10^6 (matches spec)     |
+
+Both values (10^6 and 10^16) vastly exceed the minimum bias needed for Z-only
+error correction to be effective (~100), so the discrepancy does not affect
+the validity of the LDPC-cat approach.
+
 ## LDPC-Cat Code Construction
 
 **Spec:** Claims @[165, 34, 22]@ base code from a 3x3 stabilizer tiled on a torus.
