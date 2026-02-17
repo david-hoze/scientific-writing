@@ -217,10 +217,19 @@ Key observations:
 1. **Zero logical errors at p_Z <= 3%**: With 10,000 trials, the upper
    bound (95% confidence, Poisson) is p_L < 3 x 10^-4. The code
    provides at least a 100x reduction in error rate in this regime.
+   This is consistent with the decoder's known capability: at p_Z = 3%,
+   the expected number of errors per round is 136 x 0.03 ~ 4.1, and
+   OSD-5 can correct all patterns of weight <= 5 comfortably. The
+   transition at p_Z = 4% (first observed failures at p_L = 0.02%)
+   aligns with the regime where typical error weight starts exceeding 5,
+   so some error patterns begin to overwhelm the decoder. This gives
+   a mental model for where the curve inflects: below ~4% the decoder
+   handles essentially all error patterns; above it, an increasing
+   fraction of rounds produce errors too heavy for OSD-5.
 
 2. **Strong suppression at moderate noise**: At p_Z = 5%, the logical
    error rate is 0.04% — a 125x reduction. At p_Z = 7%, the 0.8%
-   logical rate is still a 8.75x reduction.
+   logical rate is still an 8.75x reduction.
 
 3. **Graceful degradation**: Even at p_Z = 10% (well above typical
    operating points), the code still provides a 1.6x reduction.
