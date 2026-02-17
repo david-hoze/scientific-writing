@@ -12,17 +12,12 @@ import QEC.Noise
 import QEC.Noise.CatQubit
 import QEC.Resource.Algorithm
 import QEC.Resource.MagicState
-import QEC.Resource.Layout
+import QEC.Resource.Layout (CodeFamily(..))
+import qualified QEC.Resource.Layout as Layout
 
 ------------------------------------------------------------------------
 -- Types
 ------------------------------------------------------------------------
-
--- | Code family specification for resource estimation.
-data CodeFamily
-  = RepetitionCat    -- ^ Repetition code (phase-flip only, cat qubit)
-  | SurfaceCode      -- ^ Standard surface code
-  deriving stock (Show, Eq)
 
 -- | Result of resource estimation.
 data ResourceEstimate = ResourceEstimate
@@ -50,8 +45,8 @@ data ResourceEstimate = ResourceEstimate
 -- 3. Compute qubit counts (data + syndrome + routing + factory)
 -- 4. Compute runtime and factory count (fixed-point iteration)
 estimateResources :: Algorithm -> CatQubitParams -> CodeFamily
-                  -> FactoryParams -> LayoutParams -> ResourceEstimate
-estimateResources algo catParams codeFamily factory layout =
+                  -> FactoryParams -> ResourceEstimate
+estimateResources algo catParams codeFamily factory =
   ResourceEstimate
     { reDataQubits           = nData
     , reSyndromeQubits       = nSyndrome
@@ -72,6 +67,7 @@ estimateResources algo catParams codeFamily factory layout =
     pPhys = case codeFamily of
       RepetitionCat -> pZ ch            -- phase-flip dominant
       SurfaceCode   -> pZ ch + pX ch    -- both channels
+      LDPCCat       -> pZ ch            -- Z-only, like repetition cat
 
     -- Physical cycle time in seconds
     physCycleTimeSec = cqTCycle catParams
@@ -93,10 +89,10 @@ estimateResources algo catParams codeFamily factory layout =
     logicalCycleTime = fromIntegral d * physCycleTimeSec
     runtime = algoTDepth algo * logicalCycleTime
 
-    -- Qubit layout
-    nData = dataQubits nLogical d
-    nSyndrome = syndromeQubits layout nData
-    nRouting = routingQubits layout nData
+    -- Qubit layout (code-family-aware)
+    nData     = Layout.dataQubits     codeFamily nLogical d
+    nSyndrome = Layout.syndromeQubits codeFamily nLogical d
+    nRouting  = Layout.routingQubits  codeFamily nLogical
 
     -- Factory count (fixed-point: runtime depends on factory, factory depends on runtime)
     nFactories = factoriesNeeded factory d physCycleTimeSec
@@ -126,6 +122,14 @@ logicalErrorRate' codeFamily pPhys d =
   in a * (pPhys / pTh) ** exponent
 
 -- | Code-family-specific parameters (prefactor A, threshold p_th).
+--
+-- RepetitionCat uses a circuit-level phenomenological threshold (~2.4%)
+-- rather than the code-capacity threshold (~11%) to account for noisy
+-- syndrome extraction, matching the Gouzien et al. noise model.
+--
+-- LDPCCat uses a circuit-level threshold (~4%) estimated from the
+-- phenomenological results of Ruiz et al.
 codeParams :: CodeFamily -> (Double, Double)
-codeParams RepetitionCat = (0.1, 0.11)   -- repetition code threshold ~11%
-codeParams SurfaceCode   = (0.1, 0.01)   -- surface code threshold ~1%
+codeParams RepetitionCat = (0.1, 0.024)   -- circuit-level threshold ~2.4%
+codeParams SurfaceCode   = (0.1, 0.01)    -- surface code threshold ~1%
+codeParams LDPCCat       = (0.1, 0.04)    -- LDPC-cat circuit-level ~4%

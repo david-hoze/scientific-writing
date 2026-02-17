@@ -98,6 +98,17 @@ executable ldpc-cat-validation
   default-language: GHC2021
   ghc-options: -O2 -Wall -threaded -rtsopts "-with-rtsopts=-N"
 
+executable resource-comparison
+  main-is: ResourceComparison.hs
+  hs-source-dirs: app
+  build-depends:
+    base,
+    qec-cat,
+    bytestring >= 0.11,
+    directory  >= 1.3
+  default-language: GHC2021
+  ghc-options: -O2 -Wall
+
 executable surface-threshold
   main-is: SurfaceThreshold.hs
   hs-source-dirs: app

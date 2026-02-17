@@ -10,14 +10,13 @@ import QEC.Noise.CatQubit
 import QEC.Resource
 import QEC.Resource.Algorithm
 import QEC.Resource.MagicState
-import QEC.Resource.Layout
 import QEC.Export
 
 tests :: TestTree
 tests = testGroup "QEC.Export"
   [ testCase "exportJSON produces valid JSON" $ do
       let est = estimateResources ecdlp256 defaultCatParams RepetitionCat
-                  defaultFactory defaultLayoutParams
+                  defaultFactory
           json = exportJSON [est]
       assertBool "JSON is empty" (BL.length json > 0)
       -- Verify it parses back as JSON
@@ -27,7 +26,7 @@ tests = testGroup "QEC.Export"
 
   , testCase "exportCSV has header and data row" $ do
       let est = estimateResources ecdlp256 defaultCatParams RepetitionCat
-                  defaultFactory defaultLayoutParams
+                  defaultFactory
           csv = exportCSV [est]
           ls = BLC.lines csv
       assertBool "CSV has fewer than 2 lines" (length ls >= 2)
@@ -37,9 +36,9 @@ tests = testGroup "QEC.Export"
 
   , testCase "exportCSV with multiple estimates" $ do
       let est1 = estimateResources ecdlp256 defaultCatParams RepetitionCat
-                   defaultFactory defaultLayoutParams
+                   defaultFactory
           est2 = estimateResources shorRSA2048 defaultCatParams RepetitionCat
-                   defaultFactory defaultLayoutParams
+                   defaultFactory
           csv = exportCSV [est1, est2]
           ls = BLC.lines csv
       -- 1 header + 2 data rows

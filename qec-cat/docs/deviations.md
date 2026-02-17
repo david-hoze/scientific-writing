@@ -119,6 +119,38 @@ now calls `fractalCode` which implements the paper's exact construction.
 
 Extension: `ldpcCatCode ell` gives [136+8×ell, 34+2×ell, 22] with L = 17+ell.
 
+## Resource Estimation Calibration
+
+### RepetitionCat Circuit-Level Threshold
+
+**Spec:** Uses code-capacity threshold ~11% for the repetition code.
+
+**Implementation:** Uses circuit-level phenomenological threshold ~2.4%
+(`codeParams RepetitionCat = (0.1, 0.024)`). The code-capacity threshold
+assumes perfect syndrome extraction; the circuit-level threshold accounts
+for noisy syndrome measurements as modeled by Gouzien et al. With this
+calibration, the pipeline produces d ≈ 57 and total ≈ 125k cat qubits
+for ECDLP-256, within 10% of the Gouzien et al. target of 126,133.
+
+### LDPC-Cat Resource Estimates
+
+The LDPC-cat resource estimates are **novel** — they are not reproduced
+from any published paper. The circuit-level threshold (~4%) is estimated
+from the phenomenological results of Ruiz et al. The layout model uses
+n/k = 4 data qubits and m/k = 3 syndrome qubits per logical qubit,
+derived from the [136, 34, 22] base code parameters.
+
+### Layout Model Simplification
+
+**Spec:** `LayoutParams` with configurable overhead multipliers for
+syndrome and routing qubits.
+
+**Implementation:** Replaced with code-family-aware layout functions
+that use exact formulas per code family (e.g., `nLogical * (d-1)` syndrome
+qubits for repetition code, `nLogical * d^2` for surface code). This
+removes the need for ad-hoc overhead multipliers and gives physically
+motivated qubit counts.
+
 ## Modules Not Yet Implemented
 
 These are documented as Phase 3/4 stretch goals in the spec (Section 7):
