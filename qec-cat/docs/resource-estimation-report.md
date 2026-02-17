@@ -155,8 +155,11 @@ code's (a factor of ~2.5x vs 4.6x). This is plausible because the LDPC
 code's higher connectivity and redundancy may make it more robust to
 measurement noise, but it remains an assumption. A circuit-level threshold
 of 2.2% (matching the repetition code's degradation ratio) would give
-d = 53 and a total of ~41,764 qubits — similar to our estimate since
-the factory still dominates.
+d = 53 instead of d = 37, but the total qubit count is identical (43,456)
+because the LDPC-cat layout is distance-independent: data and syndrome
+qubits are fixed at n_L * 4 and n_L * 3 regardless of d. The code
+distance only affects the runtime (longer logical cycle) and the logical
+error rate, not the physical qubit count.
 
 ### Factory Model Assumption
 
