@@ -79,14 +79,21 @@ configuration/config first (partial-application friendly):
 - `runSimulation`: spec has `CSSCode -> SimConfig -> IO SimResult`,
   implementation has `SimConfig -> CSSCode -> Double -> Word64 -> SimResult`.
 
-## LDPC-Cat Stabilizer Pattern
+## LDPC-Cat Code Construction
 
-The spec calls for reverse-engineering the 3x3 stabilizer pattern from Ruiz et al.
-(arXiv:2401.09541). The implementation provides a general `torusCode` construction
-that tiles any 3x3 pattern on an l x m torus, but the default pattern is a
-**placeholder** that has not been validated against the paper's [165, 34, 22] code.
-The `torusCode` framework is correct; only the specific pattern needs updating once
-extracted from the paper's exhaustive search results.
+**Spec:** Claims @[165, 34, 22]@ base code from a 3x3 stabilizer tiled on a torus.
+
+**Implementation:** Uses the cellular automaton (fractal) construction from
+`FractalCode.py` in the paper's GitHub repository. The correct base code is
+**[136, 34, 22]** with H=8 rows and L=17 columns (periodic boundary conditions),
+giving n = 8×17 = 136 qubits and (H−2)×L = 102 checks. The 165 in the spec
+likely referred to a non-periodic variant.
+
+The parity check matrix H_Z has weight-4 rows, constructed via level-dependent
+2×3 stabilizer patterns. The `torusCode` utility is retained but `ldpcCatCode`
+now calls `fractalCode` which implements the paper's exact construction.
+
+Extension: `ldpcCatCode ell` gives [136+8×ell, 34+2×ell, 22] with L = 17+ell.
 
 ## Modules Not Yet Implemented
 

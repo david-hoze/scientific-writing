@@ -89,6 +89,15 @@ test-suite tests
     ScopedTypeVariables
     BangPatterns
 
+executable ldpc-cat-validation
+  main-is: LDPCCatValidation.hs
+  hs-source-dirs: app
+  build-depends:
+    base,
+    qec-cat
+  default-language: GHC2021
+  ghc-options: -O2 -Wall -threaded -rtsopts "-with-rtsopts=-N"
+
 executable surface-threshold
   main-is: SurfaceThreshold.hs
   hs-source-dirs: app
