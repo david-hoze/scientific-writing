@@ -357,7 +357,17 @@ surgery requires a single ancilla channel. For LDPC codes, this
 assumption is optimistic: the [136, 34, 22] code is constructed on a
 grid with periodic boundary conditions and level-dependent check
 patterns, meaning inter-logical-qubit operations may require routing
-through the non-local check structure. In the pessimistic routing model,
+through the non-local check structure. We also consider a moderate routing scenario of 3 routing qubits per
+logical qubit, motivated by analogy with surface code lattice surgery,
+where two ancilla channels are needed per logical qubit boundary for
+X and Z basis measurements. For bias-tailored codes that only correct
+Z errors, one channel may be unnecessary, but the non-planar
+connectivity of the [136, 34, 22] code likely requires at least one
+additional routing qubit beyond the baseline for inter-block
+communication. This factor of 3 is a representative intermediate
+scenario rather than a derived physical prediction.
+
+In the pessimistic routing model,
 we assume d routing qubits per logical qubit, reflecting the possibility
 that lattice surgery operations in an LDPC code require ancilla chains
 of length proportional to the code distance. We note that d-linear
@@ -516,24 +526,13 @@ assumption combinations. Table 8 shows the same for RSA-2048.
 |----------|------|---|--------------------------------------|-------------|-------|
 | Baseline | 4.0% | 37 | 1/logical (n_L = 768) | 53 | 43,456 |
 | Lower threshold | 2.4% | 57 | 1/logical (n_L = 768) | 53 | 43,456 |
-| Moderate routing | 4.0% | 37 | 3/logical (3 n_L = 2,304)* | 53 | 44,992 |
+| Moderate routing | 4.0% | 37 | 3/logical (3 n_L = 2,304) | 53 | 44,992 |
 | Moderate factory | 4.0% | 37 | 1/logical (n_L = 768) | 73 (+20) | 57,536 |
-| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 2,304)* | 73 (+20) | 59,072 |
+| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 2,304) | 73 (+20) | 59,072 |
 | Distance-scaled routing | 4.0% | 37 | d/logical (n_L d = 28,416) | 53 | 71,104 |
 | Distance-scaled routing | 2.4% | 57 | d/logical (n_L d = 43,776) | 53 | 86,464 |
 | Pessimistic | 2.4% | 57 | d/logical (n_L d = 43,776) | 103 (+50) | 121,664 |
 | RepetitionCat (ref.) | 2.4% | 57 | 1/logical (n_L = 768) | 53 | 124,864 |
-
-*The moderate routing scenario (3 routing qubits per logical qubit)
-is motivated by analogy with surface code lattice surgery, where
-two ancilla channels are needed per logical qubit boundary for
-X and Z basis measurements. For bias-tailored codes that only
-correct Z errors, one of the two channels may be unnecessary,
-but the non-planar connectivity of the [136, 34, 22] code likely
-requires at least one additional routing qubit beyond the baseline
-for inter-block communication. The factor of 3 should be understood
-as a representative intermediate scenario rather than a derived
-physical prediction.
 
 Key observations:
 
@@ -569,7 +568,7 @@ Key observations:
 |----------|------|---|--------------------------------------|-------------|-------|
 | Baseline | 4.0% | 37 | 1/logical (n_L = 1,400) | 53 | 13,108 |
 | Lower threshold | 2.4% | 57 | 1/logical (n_L = 1,400) | 53 | 13,108 |
-| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 4,200)* | 73 (+20) | 16,628 |
+| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 4,200) | 73 (+20) | 16,628 |
 | Distance-scaled routing | 2.4% | 57 | d/logical (n_L d = 79,800) | 53 | 93,308 |
 | Pessimistic | 2.4% | 57 | d/logical (n_L d = 79,800) | 103 (+50) | 95,108 |
 | RepetitionCat (ref.) | 2.4% | 57 | 1/logical (n_L = 1,400) | 53 | 161,508 |
@@ -739,9 +738,15 @@ with Pinnacle's < 100,000 figure. This convergence is noteworthy: two
 very different approaches (classical LDPC codes on biased-noise bosonic
 qubits vs quantum LDPC codes on superconducting transmons) arrive at
 similar physical qubit counts for the same algorithm under their
-respective pessimistic/optimistic assumptions. Whether this reflects a
-fundamental resource floor for RSA-2048 or a coincidence of modeling
-choices is an open question. Moreover, cat qubits and superconducting transmons
+respective pessimistic/optimistic assumptions. One possible explanation
+is that both approaches are bottlenecked by magic state distillation:
+the Toffoli count of the underlying algorithm sets a hard lower bound
+on factory resources regardless of the data code, and at ~10^4-10^5
+qubits the factory contribution begins to dominate. If so, the ~10^5
+convergence point reflects an algorithmic floor rather than an
+architectural coincidence, and further reductions would require
+algorithmic advances (lower Toffoli count) or factory-free gate
+synthesis. Moreover, cat qubits and superconducting transmons
 have different physical characteristics: a cat qubit is a complex
 bosonic mode requiring a nonlinear element and microwave drives, whereas
 a transmon is a simpler device with more mature fabrication. The
@@ -788,10 +793,14 @@ Several limitations of our analysis motivate future work:
    tolerates multi-cycle decoding delay at the cost of additional
    syndrome buffer qubits. The decoding latency question is particularly
    acute for the OSD post-processor, which involves Gaussian elimination
-   on a 102 x 136 matrix — feasible but non-trivial at 500 ns. We note
-   that classical LDPC decoders in communications hardware achieve
-   sub-microsecond latencies for comparable code sizes, suggesting this
-   is an engineering rather than fundamental constraint.
+   on a 102 x 136 matrix — feasible but non-trivial at 500 ns. For
+   context, hardware LDPC decoders in 5G communications achieve
+   sub-microsecond latencies for codes with thousands of bits — much
+   larger than the 136-bit codes here, though with sparser Tanner
+   graphs and without the OSD post-processing step. The smaller code
+   size works in our favor, but the OSD requirement (absent in
+   communications) adds a fixed cost that must be addressed through
+   hardware acceleration or algorithmic alternatives.
 
 5. **Physical parameter sensitivity.** A systematic exploration of the
    noise model parameter space (kappa_1/kappa_2, |alpha|^2, T_cycle,
