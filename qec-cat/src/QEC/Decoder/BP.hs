@@ -34,14 +34,16 @@ data BPConfig = BPConfig
   { bpMaxIter   :: {-# UNPACK #-} !Int     -- ^ Maximum iterations
   , bpMethod    :: !BPMethod               -- ^ Min-sum or product-sum
   , bpMsAlpha   :: {-# UNPACK #-} !Double  -- ^ Min-sum scaling factor
+  , bpOsdOrder  :: {-# UNPACK #-} !Int     -- ^ OSD post-processing order (0 = classic OSD-0)
   } deriving stock (Show, Eq)
 
 -- | Default BP configuration: min-sum with alpha=0.625, 100 iterations.
 defaultBPConfig :: BPConfig
 defaultBPConfig = BPConfig
-  { bpMaxIter = 100
-  , bpMethod  = MinSum
-  , bpMsAlpha = 0.625
+  { bpMaxIter  = 100
+  , bpMethod   = MinSum
+  , bpMsAlpha  = 0.625
+  , bpOsdOrder = 0
   }
 
 -- | Result of BP decoding.

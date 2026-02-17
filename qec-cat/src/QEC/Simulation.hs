@@ -7,6 +7,7 @@ module QEC.Simulation
   , SimResult(..)
   , defaultSimConfig
   , runSimulation
+  , runCSSSimulation
   , logicalErrorRate
   ) where
 
@@ -131,6 +132,73 @@ runChunk config hz checker channelLLR pZ nTrials gen0 =
               isLogicalError = bvWeight residual > 0
                             && not (inRowspace checker residual)
           in go (if isLogicalError then errors + 1 else errors) (done + 1) gen1
+
+------------------------------------------------------------------------
+-- CSS (dual-sector) simulation
+------------------------------------------------------------------------
+
+-- | Run a dual-sector CSS Monte Carlo simulation.
+-- Samples independent X and Z errors with rates @pEffX@ and @pEffZ@,
+-- decodes each sector, and declares logical failure if either sector
+-- has a non-trivial logical error.
+--
+-- For depolarizing noise at total rate @p@, pass @pEffX = pEffZ = 2p\/3@.
+runCSSSimulation :: SimConfig -> CSSCode -> Double -> Double -> Word64 -> SimResult
+runCSSSimulation config code pEffX pEffZ seed =
+  let chunks = splitWork (simNumTrials config) (simNumChunks config)
+      seeds  = genSeeds seed (simNumChunks config)
+      hx = cssHX code
+      hz = cssHZ code
+      n  = cssNumQubits code
+      -- Precompute rowspace checkers for both sectors
+      checkerX = mkRowspaceChecker hx  -- X-sector: residualX not in rowspace(H_X)
+      checkerZ = mkRowspaceChecker hz  -- Z-sector: residualZ not in rowspace(H_Z)
+      llrX = VU.replicate n (log ((1.0 - pEffX) / pEffX))
+      llrZ = VU.replicate n (log ((1.0 - pEffZ) / pEffZ))
+      results = parMap rdeepseq
+        (\(nTrials, s) -> force $ runCSSChunk config hx hz checkerX checkerZ
+                                              llrX llrZ pEffX pEffZ nTrials s)
+        (zip chunks seeds)
+      totalErrors = sum (map simLogicalErrors results)
+  in SimResult (simNumTrials config) totalErrors
+
+-- | Run a chunk of CSS trials.
+runCSSChunk :: SimConfig -> BinMatrix -> BinMatrix
+            -> RowspaceChecker -> RowspaceChecker
+            -> VU.Vector Double -> VU.Vector Double
+            -> Double -> Double -> Int -> SMGen -> SimResult
+runCSSChunk config hx hz checkerX checkerZ llrX llrZ pEffX pEffZ nTrials gen0 =
+  go 0 0 gen0
+  where
+    n = bmNumCols hx
+    go !errors !done !gen
+      | done >= nTrials = SimResult nTrials errors
+      | otherwise =
+          let -- Sample independent X and Z errors
+              (errX, gen1) = sampleError n pEffX gen
+              (errZ, gen2) = sampleError n pEffZ gen1
+              -- Dual syndromes: synX = H_Z * errorX, synZ = H_X * errorZ
+              synX = bmMulVec hz errX
+              synZ = bmMulVec hx errZ
+              -- Decode X-sector
+              isZeroSynX = bvWeight synX == 0
+              corrX = if isZeroSynX
+                then bvZero n
+                else bpCorrection (bpOsdDecode (simBPConfig config) hz synX llrX)
+              residualX = bvXor errX corrX
+              xLogicalErr = bvWeight residualX > 0
+                         && not (inRowspace checkerX residualX)
+              -- Decode Z-sector
+              isZeroSynZ = bvWeight synZ == 0
+              corrZ = if isZeroSynZ
+                then bvZero n
+                else bpCorrection (bpOsdDecode (simBPConfig config) hx synZ llrZ)
+              residualZ = bvXor errZ corrZ
+              zLogicalErr = bvWeight residualZ > 0
+                         && not (inRowspace checkerZ residualZ)
+              -- Trial fails if either sector has a logical error
+              isLogicalError = xLogicalErr || zLogicalErr
+          in go (if isLogicalError then errors + 1 else errors) (done + 1) gen2
 
 -- | Sample a random error: each bit flips with probability p.
 sampleError :: Int -> Double -> SMGen -> (BinVec, SMGen)
