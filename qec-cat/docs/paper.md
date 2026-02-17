@@ -16,10 +16,11 @@ shows that replacing the repetition code with the [136, 34, 22] LDPC-cat
 code of Ruiz et al. reduces the total to ~43,000 cat qubits under
 optimistic assumptions about routing and factory injection. A
 sensitivity analysis over uncertain model parameters (circuit-level
-threshold, routing overhead, factory injection cost) shows that the
-LDPC-cat advantage persists across all tested scenarios: total qubit
-counts range from 43,000 (optimistic) to 122,000 (pessimistic) for
-ECDLP-256, compared to 125,000 for the repetition-cat baseline. At the
+threshold, routing overhead, factory injection cost) shows total qubit
+counts ranging from 43,000 (optimistic) to 122,000 (pessimistic) for
+ECDLP-256, compared to 125,000 for the repetition-cat baseline. The
+advantage is robust for RSA-2048 but becomes marginal for ECDLP-256
+under the most pessimistic assumptions. At the
 optimistic operating point, magic state distillation factories dominate
 the LDPC-cat qubit budget (86%), identifying factory optimization as the
 primary lever for further improvement.
@@ -201,6 +202,15 @@ relevant to cryptanalysis (d = 37-57), the repetition code uses d
 physical qubits per logical qubit, while the LDPC code uses a fixed ratio
 of n/k = 4 — a factor of 9-14x fewer data qubits.
 
+### 3.3 Surface code (reference point)
+
+The standard surface code [14] is included in the pipeline as a reference
+architecture but omitted from the main results tables. At cat qubit
+noise parameters (p_Z = 9.5 x 10^-3, p_th = 1%), the ratio p/p_th =
+0.95 is very close to 1, requiring d > 1,000 and producing qubit counts
+exceeding 10^9 — confirming that surface codes are not competitive with
+bias-tailored codes when noise is dominated by a single Pauli channel.
+
 ## 4. Decoder
 
 ### 4.1 Belief propagation with ordered statistics decoding
@@ -264,7 +274,13 @@ For ECDLP-256, this gives p_budget = 4.34 x 10^-13. The entire budget is
 allocated to data errors (QEC failure). Magic state distillation errors
 are handled separately by the factory's output error rate (3 x 10^-7 per
 state), which is far below the per-cycle budget and does not drive the
-code distance.
+code distance. This allocation is valid when the distillation error per
+state is much smaller than the data error budget per cycle — satisfied
+here by a factor of ~10^6. In regimes where the factory output error
+rate approaches the per-cycle budget (e.g., with higher physical error
+rates or shorter algorithms requiring less suppression), the error
+budget would need to be explicitly partitioned between data and
+distillation contributions, and the code distance might increase.
 
 ### 5.2 Code distance selection
 
@@ -344,11 +360,16 @@ patterns, meaning inter-logical-qubit operations may require routing
 through the non-local check structure. In the pessimistic routing model,
 we assume d routing qubits per logical qubit, reflecting the possibility
 that lattice surgery operations in an LDPC code require ancilla chains
-of length proportional to the code distance. The true routing overhead
-likely lies between these bounds and depends on the physical layout and
-connectivity of the target hardware; determining it precisely requires
-detailed circuit-level analysis of the [136, 34, 22] Tanner graph
-embedding, which we leave to future work.
+of length proportional to the code distance. We note that d-linear
+routing is not necessarily an upper bound: if the Tanner graph cannot be
+embedded in 2D without high crossing number, long-range connections may
+require swap chains whose length grows super-linearly with the code
+block size, potentially exceeding n_L * d. The true routing overhead
+depends on the physical layout and connectivity of the target hardware;
+determining it precisely requires detailed circuit-level analysis of
+the [136, 34, 22] Tanner graph embedding, which we leave to future work.
+The sensitivity analysis (Section 6.6) should therefore be read as
+exploring a plausible range rather than bounding the worst case.
 
 ### 5.5 Magic state distillation
 
@@ -491,17 +512,28 @@ assumption combinations. Table 8 shows the same for RSA-2048.
 **Table 7.** Sensitivity analysis for ECDLP-256 LDPCCat (n_L = 768,
 704 factories).
 
-| Scenario | p_th | d | Routing model | Factory/unit | Total |
-|----------|------|---|---------------|-------------|-------|
-| Baseline | 4.0% | 37 | 1/logical (768) | 53 | 43,456 |
-| Lower threshold | 2.4% | 57 | 1/logical (768) | 53 | 43,456 |
-| Moderate routing | 4.0% | 37 | 3/logical (2,304) | 53 | 44,992 |
-| Moderate factory | 4.0% | 37 | 1/logical (768) | 73 (+20) | 57,536 |
-| Combined moderate | 2.4% | 57 | 3/logical (2,304) | 73 (+20) | 59,072 |
-| Distance-scaled routing | 4.0% | 37 | d/logical (28,416) | 53 | 71,104 |
-| Distance-scaled routing | 2.4% | 57 | d/logical (43,776) | 53 | 86,464 |
-| Pessimistic | 2.4% | 57 | d/logical (43,776) | 103 (+50) | 121,664 |
-| RepetitionCat (ref.) | 2.4% | 57 | 1/logical (768) | 53 | 124,864 |
+| Scenario | p_th | d | Routing model (total routing qubits) | Factory/unit | Total |
+|----------|------|---|--------------------------------------|-------------|-------|
+| Baseline | 4.0% | 37 | 1/logical (n_L = 768) | 53 | 43,456 |
+| Lower threshold | 2.4% | 57 | 1/logical (n_L = 768) | 53 | 43,456 |
+| Moderate routing | 4.0% | 37 | 3/logical (3 n_L = 2,304)* | 53 | 44,992 |
+| Moderate factory | 4.0% | 37 | 1/logical (n_L = 768) | 73 (+20) | 57,536 |
+| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 2,304)* | 73 (+20) | 59,072 |
+| Distance-scaled routing | 4.0% | 37 | d/logical (n_L d = 28,416) | 53 | 71,104 |
+| Distance-scaled routing | 2.4% | 57 | d/logical (n_L d = 43,776) | 53 | 86,464 |
+| Pessimistic | 2.4% | 57 | d/logical (n_L d = 43,776) | 103 (+50) | 121,664 |
+| RepetitionCat (ref.) | 2.4% | 57 | 1/logical (n_L = 768) | 53 | 124,864 |
+
+*The moderate routing scenario (3 routing qubits per logical qubit)
+is motivated by analogy with surface code lattice surgery, where
+two ancilla channels are needed per logical qubit boundary for
+X and Z basis measurements. For bias-tailored codes that only
+correct Z errors, one of the two channels may be unnecessary,
+but the non-planar connectivity of the [136, 34, 22] code likely
+requires at least one additional routing qubit beyond the baseline
+for inter-block communication. The factor of 3 should be understood
+as a representative intermediate scenario rather than a derived
+physical prediction.
 
 Key observations:
 
@@ -518,23 +550,29 @@ Key observations:
    factory (+94% per factory) increases the factory total from 37,312
    to 72,512.
 
-4. **Even the pessimistic scenario is competitive.** At 121,664 total
-   qubits (p_th = 2.4%, d-scaled routing, +50 factory ancillas), the
-   LDPC-cat count is still 3% below the repetition-cat baseline of
-   124,864. The LDPC-cat advantage is robust across the tested range
-   of assumptions.
+4. **The pessimistic scenario is marginal for ECDLP-256.** At 121,664
+   total qubits (p_th = 2.4%, d-scaled routing, +50 factory ancillas),
+   the LDPC-cat count is only 3% below the repetition-cat baseline of
+   124,864 — a margin well within the modeling uncertainty. The
+   LDPC-cat advantage is established under baseline assumptions but
+   becomes marginal under the most pessimistic combination. Moreover,
+   the pessimistic routing model (d/logical) may not bound the worst
+   case (Section 5.4), so the true pessimistic scenario could exceed
+   the repetition-cat baseline. The advantage is more robust for
+   RSA-2048, where even the pessimistic estimate (95,108) remains
+   41% below the repetition-cat baseline (Table 8).
 
 **Table 8.** Sensitivity analysis for RSA-2048 LDPCCat (n_L = 1,400,
 36 factories).
 
-| Scenario | p_th | d | Routing model | Factory/unit | Total |
-|----------|------|---|---------------|-------------|-------|
-| Baseline | 4.0% | 37 | 1/logical (1,400) | 53 | 13,108 |
-| Lower threshold | 2.4% | 57 | 1/logical (1,400) | 53 | 13,108 |
-| Combined moderate | 2.4% | 57 | 3/logical (4,200) | 73 (+20) | 16,628 |
-| Distance-scaled routing | 2.4% | 57 | d/logical (79,800) | 53 | 93,308 |
-| Pessimistic | 2.4% | 57 | d/logical (79,800) | 103 (+50) | 95,108 |
-| RepetitionCat (ref.) | 2.4% | 57 | 1/logical (1,400) | 53 | 161,508 |
+| Scenario | p_th | d | Routing model (total routing qubits) | Factory/unit | Total |
+|----------|------|---|--------------------------------------|-------------|-------|
+| Baseline | 4.0% | 37 | 1/logical (n_L = 1,400) | 53 | 13,108 |
+| Lower threshold | 2.4% | 57 | 1/logical (n_L = 1,400) | 53 | 13,108 |
+| Combined moderate | 2.4% | 57 | 3/logical (3 n_L = 4,200)* | 73 (+20) | 16,628 |
+| Distance-scaled routing | 2.4% | 57 | d/logical (n_L d = 79,800) | 53 | 93,308 |
+| Pessimistic | 2.4% | 57 | d/logical (n_L d = 79,800) | 103 (+50) | 95,108 |
+| RepetitionCat (ref.) | 2.4% | 57 | 1/logical (n_L = 1,400) | 53 | 161,508 |
 
 For RSA-2048, the factory count is only 36, so factory injection
 overhead has minimal impact. The dominant uncertainty is routing: at
@@ -671,19 +709,23 @@ contribution (37,000-73,000 qubits), and both must be optimized.
 ### 9.2 Robustness of the LDPC-cat advantage
 
 The sensitivity analysis (Section 6.6) shows that the LDPC-cat advantage
-over repetition codes is robust across all tested assumption
-combinations. Even the most pessimistic scenario (p_th = 2.4%,
-d-scaled routing, +50 factory ancillas) yields 121,664 qubits for
-ECDLP-256 — still 3% below the repetition-cat baseline. The advantage
-is larger for RSA-2048, where the pessimistic LDPC-cat estimate (95,108)
-remains 41% below the repetition-cat baseline (161,508).
+over repetition codes is established under baseline assumptions and
+persists across most tested scenarios. For RSA-2048, the advantage is
+substantial even in the most pessimistic case (95,108 vs 161,508, a
+41% reduction). For ECDLP-256, the advantage is clear under baseline
+assumptions (43,456 vs 124,864, a 65% reduction) but becomes marginal
+under the most pessimistic combination: 121,664 qubits, only 3% below
+the repetition-cat baseline — a margin well within modeling uncertainty.
 
 The LDPC-cat advantage is most fragile for ECDLP-256 under extreme
 routing assumptions. If routing overhead scales with d AND the true
 threshold is low (forcing high d), the routing qubits approach the
 repetition code's data qubit count, eroding the encoding rate advantage.
-This points to routing and physical layout as the most critical open
-questions for LDPC-cat architectures.
+Furthermore, since d-linear routing may not bound the worst case
+(Section 5.4), the true pessimistic scenario could exceed the
+repetition-cat baseline for ECDLP-256. This points to routing and
+physical layout as the most critical open questions for LDPC-cat
+architectures.
 
 ### 9.3 Comparison with qLDPC approaches
 
@@ -692,8 +734,14 @@ The Pinnacle architecture [2] achieves fewer than 100,000 physical
 novel "magic engines" for simultaneous distillation and injection.
 Our LDPC-cat baseline of 13,108 cat qubits for the same algorithm is
 substantially lower, but this comparison requires significant caveats.
-Under pessimistic assumptions, our estimate rises to 95,108 — comparable
-to Pinnacle's figure. Moreover, cat qubits and superconducting transmons
+Under pessimistic assumptions, our estimate rises to 95,108 — convergent
+with Pinnacle's < 100,000 figure. This convergence is noteworthy: two
+very different approaches (classical LDPC codes on biased-noise bosonic
+qubits vs quantum LDPC codes on superconducting transmons) arrive at
+similar physical qubit counts for the same algorithm under their
+respective pessimistic/optimistic assumptions. Whether this reflects a
+fundamental resource floor for RSA-2048 or a coincidence of modeling
+choices is an open question. Moreover, cat qubits and superconducting transmons
 have different physical characteristics: a cat qubit is a complex
 bosonic mode requiring a nonlinear element and microwave drives, whereas
 a transmon is a simpler device with more mature fabrication. The
@@ -728,7 +776,24 @@ Several limitations of our analysis motivate future work:
    (e.g., Elevator codes [17], Romanesco codes [18]) could yield further
    improvements in encoding rate or threshold.
 
-4. **Physical parameter sensitivity.** A systematic exploration of the
+4. **Decoding latency.** The resource estimates assume that decoding
+   completes within one QEC cycle (T_cycle = 500 ns). For the repetition
+   code, minimum-weight decoding of a 1D chain is O(d) and easily meets
+   this budget. For the [136, 34, 22] LDPC-cat code, BP decoding with
+   up to 100 iterations on a 136-variable Tanner graph is more
+   expensive. If BP+OSD decoding cannot keep pace with the 500 ns cycle
+   time, the architecture would need either (a) a faster decoder
+   (e.g., hardware-accelerated BP), (b) a longer cycle time (increasing
+   runtime proportionally), or (c) a sliding-window approach that
+   tolerates multi-cycle decoding delay at the cost of additional
+   syndrome buffer qubits. The decoding latency question is particularly
+   acute for the OSD post-processor, which involves Gaussian elimination
+   on a 102 x 136 matrix — feasible but non-trivial at 500 ns. We note
+   that classical LDPC decoders in communications hardware achieve
+   sub-microsecond latencies for comparable code sizes, suggesting this
+   is an engineering rather than fundamental constraint.
+
+5. **Physical parameter sensitivity.** A systematic exploration of the
    noise model parameter space (kappa_1/kappa_2, |alpha|^2, T_cycle,
    target error rate) would identify the operating regime where LDPC-cat
    codes provide the greatest advantage and the crossover points with
@@ -744,8 +809,10 @@ cat qubits for 256-bit ECDLP and 13,108 for RSA-2048 under baseline
 assumptions, representing a 65% and 92% reduction compared to the
 repetition-cat baseline. A sensitivity analysis over three uncertain
 parameters (threshold, routing, factory injection) shows the advantage
-persists across all tested scenarios, with pessimistic estimates of
-122,000 (ECDLP-256) and 95,000 (RSA-2048).
+is robust for RSA-2048 (pessimistic estimate 95,000, 41% below
+baseline) but becomes marginal for ECDLP-256 under the most
+pessimistic assumptions (122,000, only 3% below the repetition-cat
+baseline).
 
 The pipeline faithfully reproduces the Gouzien et al. result of ~126,000
 cat qubits (within 1%), validating the calibration. The dominant cost
@@ -807,6 +874,8 @@ more detailed noise models, and alternative LDPC code constructions.
 
 [12] Alice & Bob, "A Cat Qubit That Jumps Every Hour," company technical
      report (2025). Not peer-reviewed; not available as a preprint.
+     Cited for experimental context only; no quantitative parameters
+     from this source enter our resource estimates.
 
 [13] J. Roffe, D. R. White, S. Burton, and E. Campbell, "Decoding across
      the quantum low-density parity-check code landscape," Phys. Rev.
