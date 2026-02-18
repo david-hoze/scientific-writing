@@ -29,7 +29,7 @@ import qualified Network.WebSockets as WS
 import Eval (classifyCell, CellKind(..), buildResultMsg, buildDeclOkMsg, buildErrorMsg)
 import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..), ProgressMsg(..))
 import Render (renderViaGHCi, cleanTypeStr)
-import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, closeSession)
+import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, resetSession, closeSession)
 
 ------------------------------------------------------------------------
 -- Tasty option: --long
@@ -129,7 +129,7 @@ testHandleClient session conn (CM_eval req) = do
               ms <- elapsedMs start
               sendJSON conn (SM_result (buildResultMsg cellId ms ro))
 
-testHandleClient _ _ CM_reset       = return ()  -- no-op (matches production)
+testHandleClient session _ CM_reset  = resetSession session
 testHandleClient _ _ (CM_cancel _)  = return ()
 testHandleClient _ _ (CM_save _ _)  = return ()
 testHandleClient _ _ (CM_load _)    = return ()
@@ -616,10 +616,7 @@ sequenceTests getPort = sequentialTestGroup "Sequence & state" AllFinish
 
 resetTests :: IO Int -> TestTree
 resetTests getPort = sequentialTestGroup "Reset" AllFinish
-  [ testCase "reset_clears_bindings (XFAIL: reset is no-op)" $ withConn getPort $ \conn -> do
-      -- NOTE: This test will fail until CM_reset is implemented in the
-      -- server (currently a no-op). The failure is expected and documents
-      -- the missing feature.
+  [ testCase "reset_clears_bindings" $ withConn getPort $ \conn -> do
       (r1, _) <- evalAndWait conn "rc-1" "let w___reset_test = 1 :: Int"
       assertTextField r1 "status" "decl_ok"
       sendReset conn

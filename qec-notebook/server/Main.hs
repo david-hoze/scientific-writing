@@ -23,7 +23,7 @@ import qualified Data.Text as T
 import Eval (classifyCell, buildResultMsg, buildDeclOkMsg, buildErrorMsg, CellKind(..))
 import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..), ProgressMsg(..))
 import Render (renderViaGHCi, cleanTypeStr)
-import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, closeSession)
+import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, resetSession, closeSession)
 
 main :: IO ()
 main = do
@@ -154,7 +154,7 @@ handleClient session conn (CM_eval req) = do
               sendJSON conn (SM_result (buildResultMsg cellId ms ro))
               putStrLn ("[eval] sent result, " ++ show ms ++ "ms")
 
-handleClient _ _ CM_reset     = return ()
+handleClient session _ CM_reset = resetSession session
 handleClient _ _ (CM_cancel _) = return ()
 handleClient _ _ (CM_save _ _) = return ()
 handleClient _ _ (CM_load _)   = return ()

@@ -9,6 +9,7 @@ module Session
   , evalInSessionWithProgress
   , evalExprInSession
   , evalIOExprInSession
+  , resetSession
   , closeSession
   ) where
 
@@ -207,6 +208,24 @@ collectUntilWithProgress sent h onLine = go []
         else do
           onLine line
           go (line : acc)
+
+-- | Reset the GHCi session: clear all user bindings and re-import the prelude.
+-- Uses GHCi's :load command with no arguments to clear the context, then
+-- re-runs the same imports as initSession.
+resetSession :: Session -> IO ()
+resetSession s = do
+  -- :load with no args clears all loaded modules and user bindings
+  _ <- evalInSession s ":load"
+  -- Re-import the prelude (same sequence as initSession)
+  _ <- evalInSession s "import System.IO (hSetEncoding, stdout, stderr, utf8)"
+  _ <- evalInSession s "hSetEncoding stdout utf8"
+  _ <- evalInSession s "hSetEncoding stderr utf8"
+  _ <- evalInSession s ":set -XOverloadedStrings"
+  _ <- evalInSession s "import Prelude"
+  _ <- evalInSession s "import QEC.Notebook"
+  _ <- evalInSession s "import QEC.Notebook.Renderable"
+  _ <- evalInSession s "import Data.Word (Word64)"
+  putStrLn "  [session] reset complete"
 
 -- | Close the GHCi session.
 closeSession :: Session -> IO ()

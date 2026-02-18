@@ -61,7 +61,6 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
 ## Not Yet Implemented
 
 - Save/Load notebook (server stubs exist, no file I/O)
-- Reset session (stub exists)
 - Cancel running computation (stub exists)
 
 ## Recently Implemented
@@ -80,6 +79,10 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
   - `server/Session.hs` — `evalIOExprInSession`, `evalInSessionWithProgress`
   - `server/Main.hs` — sweep detection + progress callback wiring
   - `server/Protocol.hs` — `SM_progress` constructor
+
+- **Reset session**: `CM_reset` now calls `resetSession` which runs `:load` in
+  GHCi (clears all user bindings and loaded modules), then re-imports the
+  notebook prelude. The `reset_clears_bindings` test now passes.
 
 ## Troubleshooting Log
 
@@ -212,8 +215,7 @@ cabal test notebook-tests --test-option='-p /Unit/' # unit tests only
   renderer type, declarations, error detection, state persistence,
   and session reset.
 
-One test (`reset_clears_bindings`) is expected to fail until `CM_reset`
-is implemented in the server.
+All 66 tests pass (37 unit + 29 integration).
 
 ### Legacy ad-hoc test (Node.js)
 

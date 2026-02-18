@@ -103,7 +103,7 @@ ephemeral port for the entire integration group.
 | Declarations (4) | `let_binding`, `let_then_use`, `import_module`, `ghci_command_set` | Bindings, imports, GHCi commands |
 | Errors (4) | `undefined_variable`, `type_error`, `failed_eval_unit`, `empty_source` | Error detection and server resilience |
 | Sequence & state (2) | `binding_persists`, `binding_chain` | GHCi state across evaluations |
-| Reset (2) | `reset_clears_bindings` (XFAIL), `reset_reimports` | Session reset (not yet implemented) |
+| Reset (2) | `reset_clears_bindings`, `reset_reimports` | Session reset via `:load` + prelude re-import |
 | Sweep (2, `--long`) | `sweep_produces_result`, `sweep_sends_progress` | Full simulation sweep with progress streaming. Server rewrites `sweep` to `sweepIO`, intercepts `___QEC_PROGRESS___` markers, sends `progress` messages with `render_as: "sweep_progress"`. |
 
 
@@ -208,9 +208,7 @@ Key helpers:
 
 ## Known expected failures
 
-| Test | Status | Reason |
-|------|--------|--------|
-| `reset_clears_bindings` | XFAIL | `CM_reset` is a no-op in the server. Will pass once reset is implemented. |
+None. All tests pass.
 
 
 ## CI notes
