@@ -1,0 +1,39 @@
+cabal-version: 3.0
+name:          qec-notebook
+version:       0.1.0.0
+synopsis:      Interactive research notebook for qec-cat
+license:       BSD-3-Clause
+build-type:    Simple
+
+executable qec-notebook
+  main-is:       Main.hs
+  other-modules:
+    Protocol
+    Eval
+    Render
+    Session
+    Stream
+  hs-source-dirs: server
+  build-depends:
+    base          >= 4.18 && < 5,
+    qec-cat,
+    aeson         >= 2.1,
+    text          >= 2.0,
+    bytestring    >= 0.11,
+    websockets    >= 0.13,
+    wai           >= 3.2,
+    warp          >= 3.3,
+    wai-websockets >= 3.0,
+    async         >= 2.2,
+    stm           >= 2.5,
+    directory     >= 1.3,
+    filepath      >= 1.4,
+    containers    >= 0.6,
+    network       >= 3.1,
+    http-types    >= 0.12,
+    time          >= 1.9,
+    process       >= 1.6
+  default-language: GHC2021
+  default-extensions:
+    OverloadedStrings
+  ghc-options: -O2 -Wall -threaded -rtsopts "-with-rtsopts=-N"

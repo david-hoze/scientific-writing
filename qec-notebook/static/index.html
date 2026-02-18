@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>qec-notebook</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Vega-Lite for threshold plots -->
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head>
+<body>
+  <header id="header">
+    <div class="header-left">
+      <h1>qec-notebook</h1>
+      <span id="status-indicator" class="status disconnected" title="Disconnected">●</span>
+      <span id="status-text">Disconnected</span>
+    </div>
+    <div class="header-right">
+      <button id="btn-add-cell" title="Add cell (Ctrl+Shift+N)">+ Cell</button>
+      <button id="btn-reset" title="Reset session">Reset</button>
+      <button id="btn-save" title="Save notebook (Ctrl+S)">Save</button>
+      <button id="btn-load" title="Load notebook">Load</button>
+    </div>
+  </header>
+
+  <main id="notebook">
+    <div id="welcome" class="welcome-card">
+      <h2>Welcome to qec-notebook</h2>
+      <p>Interactive research notebook for quantum error correction with the <code>qec-cat</code> library.</p>
+      <p>Try:</p>
+      <pre><code>ldpcCatCode 0                                    -- build a code
+defaultCatParams                                 -- see cat qubit physics
+sweep                                            -- run threshold analysis
+  (sweepCodes "rep" repetitionCode [3,5,7,9])
+  (noiseRange 0.01 0.2 15)
+  defaultSimConfig</code></pre>
+      <p class="hint">Shift+Enter to run a cell · Ctrl+Shift+N to add a new cell</p>
+    </div>
+
+    <div id="cells-container"></div>
+  </main>
+
+  <script src="renderers.js"></script>
+  <script src="notebook.js"></script>
+</body>
+</html>

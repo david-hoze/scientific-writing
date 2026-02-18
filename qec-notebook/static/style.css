@@ -1,0 +1,506 @@
+/* ───────────────────────────────────────────────
+   qec-notebook styles
+   ─────────────────────────────────────────────── */
+
+:root {
+  --bg:          #0d1117;
+  --bg-card:     #161b22;
+  --bg-input:    #1c2129;
+  --bg-hover:    #21262d;
+  --border:      #30363d;
+  --border-focus: #58a6ff;
+  --text:        #c9d1d9;
+  --text-muted:  #8b949e;
+  --text-bright: #f0f6fc;
+  --accent:      #58a6ff;
+  --accent-green:#3fb950;
+  --accent-red:  #f85149;
+  --accent-yellow:#d29922;
+  --font-mono:   'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+  --font-sans:   -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --radius:      8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+.status {
+  font-size: 12px;
+  transition: color 0.3s;
+}
+.status.connected    { color: var(--accent-green); }
+.status.disconnected { color: var(--accent-red); }
+.status.connecting   { color: var(--accent-yellow); }
+
+#status-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+button {
+  background: var(--bg-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 0.15s, border-color 0.15s;
+}
+button:hover {
+  background: var(--border);
+  border-color: var(--text-muted);
+}
+
+/* ── Main ── */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 120px;
+}
+
+/* ── Welcome card ── */
+.welcome-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.welcome-card h2 {
+  color: var(--text-bright);
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.welcome-card p {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+.welcome-card pre {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  overflow-x: auto;
+  margin: 12px 0;
+}
+.welcome-card .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+/* ── Cell ── */
+.cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+.cell:focus-within {
+  border-color: var(--border-focus);
+}
+.cell.running {
+  border-color: var(--accent-yellow);
+}
+.cell.error {
+  border-color: var(--accent-red);
+}
+
+/* Cell header bar */
+.cell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+.cell-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+}
+.cell-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cell:hover .cell-actions,
+.cell:focus-within .cell-actions {
+  opacity: 1;
+}
+.cell-actions button {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+}
+.cell-actions button:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+
+/* Cell input (textarea) */
+.cell-input {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  background: var(--bg-input);
+  border: none;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  tab-size: 2;
+}
+.cell-input:focus {
+  background: #1f2733;
+}
+.cell-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Cell output */
+.cell-output {
+  padding: 0;
+  overflow-x: auto;
+}
+.cell-output:empty {
+  display: none;
+}
+.cell-output.has-content {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Elapsed badge ── */
+.elapsed {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── Fallback (show text) ── */
+.output-fallback {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.output-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+/* ── Error output ── */
+.output-error {
+  background: rgba(248,81,73,0.08);
+  border-left: 3px solid var(--accent-red);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+}
+.output-error .error-kind {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-red);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.output-error .error-message {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* ── Code card (css_code) ── */
+.code-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 24px;
+  align-items: baseline;
+}
+.code-card .code-label {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  grid-column: 1 / -1;
+}
+.code-card .prop-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.code-card .prop-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-bright);
+}
+.code-card .note {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--accent-green);
+  font-style: italic;
+}
+
+/* ── Cat qubit params card ── */
+.params-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.params-section h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.params-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.params-row .param-name {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.params-row .param-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.bias-hero {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 12px;
+  background: var(--bg-input);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+.bias-hero .label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.bias-hero .value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── Pauli channel inline ── */
+.pauli-channel {
+  display: flex;
+  gap: 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.pauli-channel .pc-item .pc-label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pauli-channel .pc-item .pc-value {
+  color: var(--text-bright);
+}
+
+/* ── Sim result ── */
+.sim-result {
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+.sim-result .sr-main {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.sim-result .sr-detail {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Resource estimate card ── */
+.resource-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+}
+.resource-card .hero {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.resource-card .bar-container {
+  grid-column: 1 / -1;
+  height: 24px;
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.resource-card .bar-seg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: #fff;
+}
+
+/* ── Resource comparison table ── */
+.resource-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.resource-table th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.resource-table th:hover {
+  color: var(--text-bright);
+}
+.resource-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-bright);
+}
+.resource-table tr:hover td {
+  background: var(--bg-hover);
+}
+.resource-table .highlight {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── Binary matrix ── */
+.bin-matrix-grid {
+  display: inline-grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bin-matrix-grid .bit {
+  width: 8px;
+  height: 8px;
+}
+.bin-matrix-grid .bit.one  { background: var(--accent); }
+.bin-matrix-grid .bit.zero { background: var(--bg); }
+
+.matrix-summary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ── Threshold plot ── */
+.threshold-plot-container {
+  width: 100%;
+  min-height: 400px;
+}
+.threshold-plot-container .vega-embed {
+  width: 100% !important;
+}
+
+/* ── Decl OK ── */
+.decl-ok {
+  font-size: 12px;
+  color: var(--accent-green);
+  font-family: var(--font-mono);
+}
+
+/* ── Stale indicator ── */
+.cell.stale .cell-output {
+  opacity: 0.5;
+}
