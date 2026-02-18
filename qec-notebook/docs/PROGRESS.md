@@ -166,20 +166,40 @@ Node.js test client work reliably.
 
 ## Testing
 
-### Automated test (Node.js)
+### Haskell test suite (`cabal test`)
 
-Prerequisites: `npm install ws` (from the `qec-notebook` directory).
+The project has a proper test suite in `test/` using the tasty framework.
+See [testing.md](testing.md) for the full guide.
 
-```powershell
-# Start the server
-cabal run qec-notebook
-
-# In another terminal, run the test
-node test-ws.js
+```
+cabal test notebook-tests             # all tests (~4s after first build)
+cabal test notebook-tests --test-option='--long'   # include sweep tests (~30s)
+cabal test notebook-tests --test-option='-p /Unit/' # unit tests only
 ```
 
-The test connects via WebSocket, sends several eval messages, and prints
-the responses with status, render_as, type, and timing.
+**62 tests total** (37 unit + 25 integration):
+
+- **Unit tests** — pure functions: `classifyCell` (16 cases), message
+  builders (6 cases), `cleanTypeStr` (5 cases), Protocol JSON codecs
+  (10 cases). No GHCi, no network.
+- **Integration tests** — full WebSocket server on an ephemeral port
+  backed by a real GHCi session. Tests connection handling, every
+  renderer type, declarations, error detection, state persistence,
+  and session reset.
+
+One test (`reset_clears_bindings`) is expected to fail until `CM_reset`
+is implemented in the server.
+
+### Legacy ad-hoc test (Node.js)
+
+The old `test-ws.js` smoke test is superseded by the Haskell test suite
+but still works for quick manual checks:
+
+```
+npm install ws
+cabal run qec-notebook    # in one terminal
+node test-ws.js           # in another
+```
 
 ### Manual browser test
 
