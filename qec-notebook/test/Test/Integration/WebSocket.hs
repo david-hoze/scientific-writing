@@ -416,6 +416,71 @@ expressionTests getPort = sequentialTestGroup "Expression evaluation" AllFinish
             _ -> assertFailure "data.logical_rate missing or not a number"
         _ -> assertFailure "Expected data to be an object"
 
+  , testCase "eval_resource_estimate" $ withConn getPort $ \conn -> do
+      (result, _) <- evalAndWait conn "ere-1"
+        "estimateResources shorRSA2048 defaultCatParams RepetitionCat defaultFactory"
+      assertTextField result "status" "ok"
+      assertTextField result "render_as" "resource_estimate"
+      case getField "data" result of
+        Just (Aeson.Object d) -> do
+          assertBool "data.total_qubits present"
+            (KM.member (Key.fromText "total_qubits") d)
+          case KM.lookup (Key.fromText "total_qubits") d of
+            Just (Aeson.Number n) ->
+              assertBool "total_qubits > 0" (realToFrac n > (0 :: Double))
+            _ -> assertFailure "data.total_qubits not a number"
+          assertBool "data.code_distance present"
+            (KM.member (Key.fromText "code_distance") d)
+          assertBool "data.runtime_seconds present"
+            (KM.member (Key.fromText "runtime_seconds") d)
+          assertBool "data.code_family present"
+            (KM.member (Key.fromText "code_family") d)
+        _ -> assertFailure "Expected data to be an object"
+
+  , testCase "eval_resource_comparison" $ withConn getPort $ \conn -> do
+      (result, _) <- evalAndWait conn "erc-1"
+        "compareArchitectures shorRSA2048 defaultCatParams [RepetitionCat, SurfaceCode, LDPCCat]"
+      assertTextField result "status" "ok"
+      assertTextField result "render_as" "resource_comparison"
+      case getField "data" result of
+        Just (Aeson.Object d) -> do
+          assertBool "data.columns present"
+            (KM.member (Key.fromText "columns") d)
+          case KM.lookup (Key.fromText "rows") d of
+            Just (Aeson.Array rows) ->
+              assertBool "rows has 3 entries (one per code family)"
+                (length rows == 3)
+            _ -> assertFailure "data.rows missing or not an array"
+        _ -> assertFailure "Expected data to be an object"
+
+  , testCase "eval_code_construction_valid" $ withConn getPort $ \conn -> do
+      -- mkCSSCode with matching matrices from repetitionCode 3 → Right CSSCode
+      (result, _) <- evalAndWait conn "ecc-1"
+        "mkCSSCode (cssHX (repetitionCode 3)) (cssHZ (repetitionCode 3))"
+      assertTextField result "status" "ok"
+      assertTextField result "render_as" "code_construction"
+      case getField "data" result of
+        Just dv@(Aeson.Object d) -> do
+          assertTextField dv "status" "valid"
+          assertBool "data.code present"
+            (KM.member (Key.fromText "code") d)
+        _ -> assertFailure "Expected data to be an object"
+
+  , testCase "eval_code_construction_invalid" $ withConn getPort $ \conn -> do
+      -- mkCSSCode with mismatched dimensions → Left (DimensionMismatch ...)
+      (result, _) <- evalAndWait conn "ecc-2"
+        "mkCSSCode (cssHX (repetitionCode 3)) (cssHZ (repetitionCode 5))"
+      assertTextField result "status" "ok"
+      assertTextField result "render_as" "code_construction"
+      case getField "data" result of
+        Just dv@(Aeson.Object _) -> do
+          assertTextField dv "status" "invalid"
+          case getField "error" dv of
+            Just ev@(Aeson.Object _) ->
+              assertTextField ev "kind" "dimension_mismatch"
+            _ -> assertFailure "data.error missing or not an object"
+        _ -> assertFailure "Expected data to be an object"
+
   , testCase "eval_string" $ withConn getPort $ \conn -> do
       (result, _) <- evalAndWait conn "es-1" "show 42"
       assertTextField result "status" "ok"

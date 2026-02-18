@@ -7,7 +7,7 @@ The test suite lives in the `notebook-tests` test-suite stanza of
 
 - **Unit tests** (37 tests) -- pure functions, no GHCi, no network.
   Run in milliseconds.
-- **Integration tests** (25 tests) -- spin up a real Warp+WebSocket
+- **Integration tests** (29 tests) -- spin up a real Warp+WebSocket
   server backed by a GHCi subprocess, connect via WebSocket, exchange
   JSON messages, and assert on the responses.
 
@@ -99,7 +99,7 @@ ephemeral port for the entire integration group.
 | Group | Tests | What it covers |
 |-------|-------|----------------|
 | Connection (4) | `ready_on_connect`, `malformed_json`, `unknown_message_type`, `concurrent_connects` | Server startup, resilience to bad input, multiple clients |
-| Expression evaluation (9) | `eval_int_literal`, `eval_css_code`, `eval_cat_params`, `eval_pauli_channel`, `eval_bin_matrix`, `eval_sim_result`, `eval_string`, `elapsed_ms_present`, `haskell_type_present` | Every renderer type, timing, type annotation |
+| Expression evaluation (13) | `eval_int_literal`, `eval_css_code`, `eval_cat_params`, `eval_pauli_channel`, `eval_bin_matrix`, `eval_sim_result`, `eval_resource_estimate`, `eval_resource_comparison`, `eval_code_construction_valid`, `eval_code_construction_invalid`, `eval_string`, `elapsed_ms_present`, `haskell_type_present` | Every renderer type, timing, type annotation |
 | Declarations (4) | `let_binding`, `let_then_use`, `import_module`, `ghci_command_set` | Bindings, imports, GHCi commands |
 | Errors (4) | `undefined_variable`, `type_error`, `failed_eval_unit`, `empty_source` | Error detection and server resilience |
 | Sequence & state (2) | `binding_persists`, `binding_chain` | GHCi state across evaluations |

@@ -44,6 +44,10 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
 | `sim_result` | `runSimulation defaultSimConfig (repetitionCode 3) 0.01 42` | ~3s |
 | `bin_matrix` | `cssHZ (repetitionCode 3)` | ~28ms |
 | `threshold_plot` | `sweep (sweepCodes "rep" repetitionCode [3,5]) (noiseRange 0.02 0.1 3) quickConfig` | ~787ms |
+| `resource_estimate` | `estimateResources shorRSA2048 defaultCatParams RepetitionCat defaultFactory` | ~20ms |
+| `resource_comparison` | `compareArchitectures shorRSA2048 defaultCatParams [RepetitionCat, SurfaceCode, LDPCCat]` | ~20ms |
+| `code_construction` (valid) | `mkCSSCode (cssHX (repetitionCode 3)) (cssHZ (repetitionCode 3))` | ~40ms |
+| `code_construction` (invalid) | `mkCSSCode (cssHX (repetitionCode 3)) (cssHZ (repetitionCode 5))` | ~20ms |
 | fallback (plain text) | `42 :: Int` | ~39ms |
 | error detection | `nonExistentFunction` | ~16ms |
 
@@ -52,8 +56,6 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
 - Save/Load notebook (server stubs exist, no file I/O)
 - Reset session (stub exists)
 - Cancel running computation (stub exists)
-- `resource_estimate` / `resource_comparison` renderers (code exists, untested)
-- `code_construction` renderer (code exists, untested)
 - Progress streaming for long computations (`Stream.hs` exists, not wired up)
 
 ## Troubleshooting Log
@@ -177,7 +179,7 @@ cabal test notebook-tests --test-option='--long'   # include sweep tests (~30s)
 cabal test notebook-tests --test-option='-p /Unit/' # unit tests only
 ```
 
-**62 tests total** (37 unit + 25 integration):
+**66 tests total** (37 unit + 29 integration):
 
 - **Unit tests** — pure functions: `classifyCell` (16 cases), message
   builders (6 cases), `cleanTypeStr` (5 cases), Protocol JSON codecs
