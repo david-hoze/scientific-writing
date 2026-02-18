@@ -43,6 +43,7 @@ data CellData = CellData
 data ServerMsg
   = SM_ready !ReadyMsg
   | SM_result !ResultMsg
+  | SM_progress !ProgressMsg
   | SM_saved !FilePath
   | SM_notebook !NotebookData
   deriving (Show)
@@ -147,6 +148,7 @@ instance ToJSON ErrorType where
 instance ToJSON ServerMsg where
   toJSON (SM_ready r)     = toJSON r
   toJSON (SM_result r)    = toJSON r
+  toJSON (SM_progress p)  = toJSON p
   toJSON (SM_saved path)  = object [ Key.fromString "type" .= ("saved" :: Text), Key.fromString "path" .= path ]
   toJSON (SM_notebook nb) = object [ Key.fromString "type" .= ("notebook" :: Text), Key.fromString "notebook" .= nb ]
 

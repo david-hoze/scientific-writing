@@ -33,6 +33,13 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
   because GHCi's bytecode interpreter doesn't benefit from sparks, and `parMap`
   caused massive memory accumulation.
 
+- **Progress via stdout markers** (not TVar): since `sweep` runs inside a GHCi
+  subprocess, we can't share TVars across process boundaries. Instead, the server
+  detects `sweep` expressions, rewrites them to `sweepIO` (an IO variant that
+  prints `___QEC_PROGRESS___ <completed> <total>` markers to stdout after each
+  simulation point), and intercepts the markers to send WebSocket `progress`
+  messages in real time.
+
 ## Confirmed Working Renderers
 
 | Renderer | Expression | Time |
@@ -56,7 +63,23 @@ Browser (JS)  <--WebSocket-->  Main.hs  <--stdin/stdout pipes-->  GHCi subproces
 - Save/Load notebook (server stubs exist, no file I/O)
 - Reset session (stub exists)
 - Cancel running computation (stub exists)
-- Progress streaming for long computations (`Stream.hs` exists, not wired up)
+
+## Recently Implemented
+
+- **Progress streaming for sweep computations**: The server detects `sweep`
+  expressions (prefix match), rewrites them to `sweepIO`, and uses
+  `evalIOExprInSession` (monadic `<-` bind in GHCi, which executes the IO
+  action). During execution, `sweepIO` prints `___QEC_PROGRESS___` markers
+  to stdout. The server intercepts these via `collectUntilWithProgress` and
+  sends WebSocket `progress` messages with `render_as: "sweep_progress"`,
+  `data.completed`, and `data.total`. The frontend's existing `handleProgress`
+  handler and `sweep_progress` renderer display the progress bar.
+
+  Key files:
+  - `qec-cat/src/QEC/Notebook.hs` — `sweepIO` function
+  - `server/Session.hs` — `evalIOExprInSession`, `evalInSessionWithProgress`
+  - `server/Main.hs` — sweep detection + progress callback wiring
+  - `server/Protocol.hs` — `SM_progress` constructor
 
 ## Troubleshooting Log
 

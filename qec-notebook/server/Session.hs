@@ -6,7 +6,9 @@ module Session
   ( Session
   , initSession
   , evalInSession
+  , evalInSessionWithProgress
   , evalExprInSession
+  , evalIOExprInSession
   , closeSession
   ) where
 
@@ -115,6 +117,16 @@ evalInSession s stmt = do
   flushIn s
   collectUntil sent (sOut s)
 
+-- | Like 'evalInSession' but calls a callback for each non-sentinel line.
+-- Used to intercept progress markers printed by sweepIO.
+evalInSessionWithProgress :: Session -> String -> (String -> IO ()) -> IO String
+evalInSessionWithProgress s stmt onLine = do
+  sent <- nextSentinel s
+  sendLine s stmt
+  sendLine s ("putStrLn " ++ show sent)
+  flushIn s
+  collectUntilWithProgress sent (sOut s) onLine
+
 -- | Evaluate an expression and return (typeString, errorString).
 --
 -- Uses @let@ binding to suppress GHCi's auto-print, which avoids
@@ -155,6 +167,46 @@ collectUntil sent h = go []
       if line == sent
         then return (unlines (reverse acc))
         else go (line : acc)
+
+-- | Evaluate an IO expression using monadic bind (@<-@) and collect progress.
+-- Returns (typeString, errorString). The callback receives each line of
+-- output during evaluation (for intercepting progress markers).
+evalIOExprInSession :: Session -> String -> (String -> IO ()) -> IO (String, String)
+evalIOExprInSession s expr onLine = do
+  -- Step 1: reset ___qecIt
+  sent0 <- nextSentinel s
+  sendLine s "let ___qecIt = ()"
+  sendLine s ("putStrLn " ++ show sent0)
+  flushIn s
+  _ <- collectUntil sent0 (sOut s)
+
+  -- Step 2: bind the IO expression using <- (monadic bind, executes the IO action)
+  sent1 <- nextSentinel s
+  sendLine s ("___qecIt <- (" ++ expr ++ ")")
+  sendLine s ("putStrLn " ++ show sent1)
+  flushIn s
+  _ <- collectUntilWithProgress sent1 (sOut s) onLine
+
+  -- Step 3: get the type
+  sent2 <- nextSentinel s
+  sendLine s ":type ___qecIt"
+  sendLine s ("putStrLn " ++ show sent2)
+  flushIn s
+  typeOut <- collectUntil sent2 (sOut s)
+
+  return (typeOut, "")
+
+-- | Like 'collectUntil' but calls a callback for each non-sentinel line.
+collectUntilWithProgress :: String -> Handle -> (String -> IO ()) -> IO String
+collectUntilWithProgress sent h onLine = go []
+  where
+    go acc = do
+      line <- hGetLine h
+      if line == sent
+        then return (unlines (reverse acc))
+        else do
+          onLine line
+          go (line : acc)
 
 -- | Close the GHCi session.
 closeSession :: Session -> IO ()

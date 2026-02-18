@@ -6,6 +6,7 @@
 -- to @show@.
 module Render
   ( renderViaGHCi
+  , renderViaGHCiWithProgress
   , cleanTypeStr
   ) where
 
@@ -16,7 +17,7 @@ import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Lazy.Char8 as BLC
 
-import Session (Session, evalInSession)
+import Session (Session, evalInSession, evalInSessionWithProgress)
 import QEC.Notebook.Renderable (RenderOutput(..))
 
 -- | Attempt structured rendering via GHCi, falling back to show.
@@ -31,6 +32,21 @@ renderViaGHCi session rawTypeStr = do
       return (RenderOutput (Just renderAs) (Just dat) "" typeStr)
     Nothing -> do
       -- No Renderable instance; fall back to truncated show
+      showOut <- evalInSession session "putStrLn (take 2000 (show ___qecIt))"
+      return (RenderOutput Nothing Nothing (strip showOut) typeStr)
+
+-- | Like 'renderViaGHCi' but passes a line callback through to
+-- 'evalInSessionWithProgress'. Used for sweep expressions where GHCi
+-- prints progress markers during evaluation.
+renderViaGHCiWithProgress :: Session -> String -> (String -> IO ()) -> IO RenderOutput
+renderViaGHCiWithProgress session rawTypeStr onLine = do
+  let typeStr = cleanTypeStr rawTypeStr
+  jsonOut <- evalInSessionWithProgress session "putStrLn (renderToString ___qecIt)" onLine
+  let trimmed = strip jsonOut
+  case Aeson.decode (BLC.pack trimmed) >>= extractFields of
+    Just (renderAs, dat) ->
+      return (RenderOutput (Just renderAs) (Just dat) "" typeStr)
+    Nothing -> do
       showOut <- evalInSession session "putStrLn (take 2000 (show ___qecIt))"
       return (RenderOutput Nothing Nothing (strip showOut) typeStr)
 

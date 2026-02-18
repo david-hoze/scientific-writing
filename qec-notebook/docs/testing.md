@@ -104,7 +104,7 @@ ephemeral port for the entire integration group.
 | Errors (4) | `undefined_variable`, `type_error`, `failed_eval_unit`, `empty_source` | Error detection and server resilience |
 | Sequence & state (2) | `binding_persists`, `binding_chain` | GHCi state across evaluations |
 | Reset (2) | `reset_clears_bindings` (XFAIL), `reset_reimports` | Session reset (not yet implemented) |
-| Sweep (2, `--long`) | `sweep_produces_result`, `sweep_sends_progress` | Full simulation sweep and progress messages |
+| Sweep (2, `--long`) | `sweep_produces_result`, `sweep_sends_progress` | Full simulation sweep with progress streaming. Server rewrites `sweep` to `sweepIO`, intercepts `___QEC_PROGRESS___` markers, sends `progress` messages with `render_as: "sweep_progress"`. |
 
 
 ## Architecture
@@ -141,8 +141,10 @@ The `app` function from `server/Main.hs` cannot be imported
 directly (module name conflict), so the integration test module
 defines its own `testApp` that mirrors the production wiring using
 the same `Session`, `Eval`, `Render`, and `Protocol` modules.
-This means the test exercises the real evaluation and rendering
-pipeline, just not the `Main.hs` glue.
+This includes sweep detection and progress streaming — the test
+server rewrites `sweep` to `sweepIO` and sends `progress` messages
+just like production. This means the test exercises the real
+evaluation and rendering pipeline, just not the `Main.hs` glue.
 
 ### Timeouts
 

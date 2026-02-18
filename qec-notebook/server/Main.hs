@@ -14,14 +14,16 @@ import System.Directory (canonicalizePath)
 import System.Environment (getArgs)
 import System.FilePath ((</>), normalise)
 import System.IO (hSetBuffering, stdout, BufferMode(..))
+import Data.Aeson ((.=))
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Key
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 import Eval (classifyCell, buildResultMsg, buildDeclOkMsg, buildErrorMsg, CellKind(..))
-import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..))
+import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..), ProgressMsg(..))
 import Render (renderViaGHCi, cleanTypeStr)
-import Session (Session, initSession, evalInSession, evalExprInSession, closeSession)
+import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, closeSession)
 
 main :: IO ()
 main = do
@@ -115,8 +117,22 @@ handleClient session conn (CM_eval req) = do
 
     Expression -> do
       putStrLn ("[eval] expression: " ++ take 60 src)
-      result <- try (evalExprInSession session src)
-        :: IO (Either SomeException (String, String))
+      let isSweep = "sweep " `isPrefixOf` src || "sweep(" `isPrefixOf` src
+          sweepIOExpr = "sweepIO" ++ drop 5 src
+          progressCb line = case parseProgress line of
+            Just (completed, total) -> do
+              ms <- elapsedMs start
+              let progData = Aeson.object
+                    [ Key.fromString "completed" .= completed
+                    , Key.fromString "total"     .= total
+                    ]
+              sendJSON conn (SM_progress (ProgressMsg cellId (T.pack "sweep_progress") progData ms))
+            Nothing -> return ()
+      result <- if isSweep
+        then try (evalIOExprInSession session sweepIOExpr progressCb)
+               :: IO (Either SomeException (String, String))
+        else try (evalExprInSession session src)
+               :: IO (Either SomeException (String, String))
       putStrLn "[eval] evalExprInSession done"
       case result of
         Left err -> do
@@ -142,6 +158,17 @@ handleClient _ _ CM_reset     = return ()
 handleClient _ _ (CM_cancel _) = return ()
 handleClient _ _ (CM_save _ _) = return ()
 handleClient _ _ (CM_load _)   = return ()
+
+-- | Parse a progress marker line from GHCi.
+-- Format: @___QEC_PROGRESS___ <completed> <total>@
+parseProgress :: String -> Maybe (Int, Int)
+parseProgress line =
+  case words line of
+    ["___QEC_PROGRESS___", completedStr, totalStr] ->
+      case (reads completedStr, reads totalStr) of
+        ([(c, "")], [(t, "")]) -> Just (c, t)
+        _ -> Nothing
+    _ -> Nothing
 
 -- | Compute elapsed milliseconds since a start time.
 elapsedMs :: UTCTime -> IO Int

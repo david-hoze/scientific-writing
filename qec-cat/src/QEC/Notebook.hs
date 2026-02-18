@@ -5,6 +5,7 @@
 module QEC.Notebook
   ( -- * Sweep combinators
     sweep
+  , sweepIO
   , sweepCodes
   , noiseRange
   , SweepResult(..)
@@ -33,8 +34,10 @@ module QEC.Notebook
   ) where
 
 import Control.DeepSeq (NFData(..), force)
+import Control.Monad (forM)
 import Data.Hashable (hash)
 import Data.Word (Word64)
+import System.IO (hFlush, stdout)
 
 import QEC.Code.CSS
 import QEC.Code.LDPCCat
@@ -82,6 +85,37 @@ sweep
 sweep codes pzValues config =
   map (force . runPoint)
     [ (label, code, pz) | (label, code) <- codes, pz <- pzValues ]
+  where
+    runPoint (label, code, pz) =
+      let seed   = hashSweepPoint label pz
+          result = runSimulation config code pz seed
+          rate   = logicalErrorRate result
+          n      = fromIntegral (simTotalTrials result)
+          stdErr = sqrt (rate * (1 - rate) / n)
+      in SweepResult
+        { swCodeLabel  = label
+        , swPhysicalPZ = pz
+        , swLogicalErr = rate
+        , swStdError   = stdErr
+        , swNumTrials  = simTotalTrials result
+        , swNumErrors  = simLogicalErrors result
+        }
+
+    hashSweepPoint label pz =
+      fromIntegral (hash (label, round (pz * 1e6) :: Int)) :: Word64
+
+-- | Like 'sweep' but prints progress markers to stdout after each point.
+-- The markers have the format @___QEC_PROGRESS___ <completed> <total>@
+-- and are intercepted by the notebook server to send progress messages.
+sweepIO :: [(String, CSSCode)] -> [Double] -> SimConfig -> IO [SweepResult]
+sweepIO codes pzValues config = do
+  let allPoints = [(label, code, pz) | (label, code) <- codes, pz <- pzValues]
+      total = length allPoints
+  forM (zip [1..] allPoints) $ \(i, (label, code, pz)) -> do
+    let result = force (runPoint (label, code, pz))
+    putStrLn ("___QEC_PROGRESS___ " ++ show i ++ " " ++ show total)
+    hFlush stdout
+    return result
   where
     runPoint (label, code, pz) =
       let seed   = hashSweepPoint label pz

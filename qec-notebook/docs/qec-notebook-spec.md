@@ -249,25 +249,19 @@ The `suggestions` field is reserved for future type-hole completions.
   "render_as": "sweep_progress",
   "data": {
     "completed": 15,
-    "total": 25,
-    "partial_results": [
-      {
-        "code_label": "[136,34,22] ell=0",
-        "physical_pz": 0.01,
-        "logical_err": 0.00021,
-        "num_trials": 100000,
-        "num_errors": 21
-      }
-    ]
+    "total": 25
   },
   "elapsed_ms": 34200
 }
 ```
 
-Progress messages are sent for any evaluation that takes
-longer than 2 seconds. The frontend updates the renderer
-incrementally — e.g. the threshold plot adds data points
-as they arrive.
+Progress messages are sent after each simulation point completes
+during a `sweep` evaluation. The `completed` and `total` fields
+allow the frontend to display a progress bar or percentage.
+The server detects `sweep` expressions and transparently rewrites
+them to use `sweepIO`, which prints progress markers to GHCi's
+stdout. The server intercepts these markers and forwards them as
+WebSocket `progress` messages.
 
 #### `stream_complete` — Streaming finished
 
@@ -782,6 +776,7 @@ notebook session.
 module QEC.Notebook
   ( -- * Sweep combinators
     sweep
+  , sweepIO
   , sweepCodes
   , sweepNoise
   , SweepResult(..)
@@ -1043,53 +1038,53 @@ handleEval session cellId source ws = do
 ### 6.5 Streaming for long computations
 
 For `sweep` and other long-running functions, we need incremental
-results. The approach: `sweep` writes to a shared `TVar` as each
-data point completes. The server polls this `TVar` and sends
-`progress` messages.
+progress feedback. Since the GHCi session runs as a subprocess,
+we cannot share TVars across process boundaries. Instead, we use
+**stdout marker interception**:
+
+1. The library provides `sweepIO`, an IO variant of `sweep` that
+   prints a progress marker to stdout after each simulation point:
 
 ```haskell
 -- In QEC.Notebook:
-
--- | Streaming sweep that writes results as they complete.
-sweepStreaming
-  :: TVar [SweepResult]   -- ^ shared accumulator
-  -> [(String, CSSCode)]
-  -> [Double]
-  -> SimConfig
-  -> IO [SweepResult]
-sweepStreaming var codes pzValues config = do
-  results <- forConcurrently allPoints $ \(label, code, pz) -> do
-    let result = runPoint (label, code, pz)
-    atomically $ modifyTVar' var (result :)
+sweepIO :: [(String, CSSCode)] -> [Double] -> SimConfig -> IO [SweepResult]
+sweepIO codes pzValues config = do
+  let allPoints = [(label, code, pz) | (label, code) <- codes, pz <- pzValues]
+      total = length allPoints
+  forM (zip [1..] allPoints) $ \(i, (label, code, pz)) -> do
+    let result = force (runPoint (label, code, pz))
+    putStrLn ("___QEC_PROGRESS___ " ++ show i ++ " " ++ show total)
+    hFlush stdout
     return result
-  return results
 ```
 
-The server detects when an expression calls `sweep` (by checking
-the type of `it` before full evaluation, or by wrapping known
-long-running functions). It allocates a `TVar`, passes it to
-the streaming variant, and spawns a poller:
+2. The server detects `sweep` expressions (prefix match on the
+   source text) and rewrites them to `sweepIO`. It uses
+   `evalIOExprInSession` which binds the expression with GHCi's
+   monadic `<-` syntax (executing the IO action) instead of `let`:
 
 ```haskell
--- Poll every 2 seconds and send progress
-poller :: TVar [SweepResult] -> CellId -> WebSocket -> IO ()
-poller var cellId ws = forever $ do
-  threadDelay 2_000_000  -- 2 seconds
-  results <- readTVarIO var
-  unless (null results) $
-    sendJSON ws (progressMsg cellId results)
+-- In Session.hs:
+evalIOExprInSession :: Session -> String -> (String -> IO ()) -> IO (String, String)
+-- Sends: ___qecIt <- (sweepIO ...)
+-- Calls onLine callback for each stdout line during execution
 ```
 
-**Design note**: The streaming mechanism requires that `sweep`
-exists in two forms — a pure version (for non-notebook use and
-testing) and a streaming `IO` version (for the notebook). The
-pure version is primary; the notebook server wraps it.
+3. During execution, each `___QEC_PROGRESS___` marker is parsed
+   and forwarded as a WebSocket `progress` message:
 
-An alternative: the pure `sweep` uses `parMap`, which processes
-all points and returns. For streaming, we replace `parMap` with
-explicit `async` tasks that write to the `TVar`. The pure API
-is unchanged — only the notebook server adds the streaming
-layer.
+```haskell
+-- In Main.hs:
+progressCb line = case parseProgress line of
+  Just (completed, total) -> do
+    ms <- elapsedMs start
+    sendJSON conn (SM_progress (ProgressMsg cellId "sweep_progress" progData ms))
+  Nothing -> return ()
+```
+
+The pure `sweep` function remains unchanged for non-notebook use.
+The `sweepIO` variant is auto-imported in the notebook session
+via `QEC.Notebook`.
 
 ### 6.6 Timeout and resource limits
 
@@ -1228,7 +1223,7 @@ import QEC.Notebook
 --               SimConfig(..), SimResult(..), logicalErrorRate
 --   Resource: estimateResources, ResourceEstimate(..),
 --             CodeFamily(..), ecdlp256, shorRSA2048
---   Notebook: sweep, sweepCodes, noiseRange, compareArchitectures,
+--   Notebook: sweep, sweepIO, sweepCodes, noiseRange, compareArchitectures,
 --             compareAll, catNoise, catNoiseAt, catPZ, SweepResult(..)
 --   GF2: BinMatrix, bmNumRows, bmNumCols (for advanced users)
 --   CSS: CSSCode(..), mkCSSCode, cssNumQubits, cssNumLogical, cssDistance

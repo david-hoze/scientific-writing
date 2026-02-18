@@ -6,6 +6,7 @@ import Control.Concurrent.Async (async, cancel)
 import Control.Exception (SomeException, try, catch)
 import Data.Aeson ((.=))
 import Data.Data (Typeable)
+import Data.List (isPrefixOf)
 import Data.Text (Text)
 import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime, nominalDiffTimeToSeconds)
 import Network.HTTP.Types (status404)
@@ -26,9 +27,9 @@ import qualified Data.Text as T
 import qualified Network.WebSockets as WS
 
 import Eval (classifyCell, CellKind(..), buildResultMsg, buildDeclOkMsg, buildErrorMsg)
-import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..))
+import Protocol (ClientMsg(..), EvalReq(..), ReadyMsg(..), ServerMsg(..), ErrorType(..), ProgressMsg(..))
 import Render (renderViaGHCi, cleanTypeStr)
-import Session (Session, initSession, evalInSession, evalExprInSession, closeSession)
+import Session (Session, initSession, evalInSession, evalExprInSession, evalIOExprInSession, closeSession)
 
 ------------------------------------------------------------------------
 -- Tasty option: --long
@@ -96,8 +97,22 @@ testHandleClient session conn (CM_eval req) = do
       sendJSON conn (SM_result (buildDeclOkMsg cellId ms))
 
     Expression -> do
-      result <- try (evalExprInSession session src)
-        :: IO (Either SomeException (String, String))
+      let isSweep = "sweep " `isPrefixOf` src || "sweep(" `isPrefixOf` src
+          sweepIOExpr = "sweepIO" ++ drop 5 src
+          progressCb line = case parseProgress line of
+            Just (completed, total) -> do
+              ms <- elapsedMs start
+              let progData = Aeson.object
+                    [ "completed" .= completed
+                    , "total"     .= total
+                    ]
+              sendJSON conn (SM_progress (ProgressMsg cellId "sweep_progress" progData ms))
+            Nothing -> return ()
+      result <- if isSweep
+        then try (evalIOExprInSession session sweepIOExpr progressCb)
+               :: IO (Either SomeException (String, String))
+        else try (evalExprInSession session src)
+               :: IO (Either SomeException (String, String))
       case result of
         Left err -> do
           ms <- elapsedMs start
@@ -118,6 +133,16 @@ testHandleClient _ _ CM_reset       = return ()  -- no-op (matches production)
 testHandleClient _ _ (CM_cancel _)  = return ()
 testHandleClient _ _ (CM_save _ _)  = return ()
 testHandleClient _ _ (CM_load _)    = return ()
+
+-- | Parse a progress marker line from GHCi.
+parseProgress :: String -> Maybe (Int, Int)
+parseProgress line =
+  case words line of
+    ["___QEC_PROGRESS___", completedStr, totalStr] ->
+      case (reads completedStr, reads totalStr) of
+        ([(c, "")], [(t, "")]) -> Just (c, t)
+        _ -> Nothing
+    _ -> Nothing
 
 sendJSON :: Aeson.ToJSON a => WS.Connection -> a -> IO ()
 sendJSON conn val = WS.sendTextData conn (Aeson.encode val)
@@ -631,8 +656,8 @@ sweepTests getPort = askOption $ \(LongTests long) ->
           assertTextField result "render_as" "threshold_plot"
           case getField "data" result of
             Just (Aeson.Object d) ->
-              assertBool "data.results present"
-                (KM.member (Key.fromText "results") d)
+              assertBool "data.series present"
+                (KM.member (Key.fromText "series") d)
             _ -> assertFailure "Expected data to be an object"
 
       , testCase "sweep_sends_progress" $ withConn getPort $ \conn -> do
