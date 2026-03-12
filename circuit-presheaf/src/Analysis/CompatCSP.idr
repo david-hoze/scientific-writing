@@ -119,3 +119,53 @@ buildCSPForFunction n d maxSize targetTT =
       pc = length (filter isPartialCompat classifications)
       fi = length (filter isFullyIncompat classifications)
   in MkCSPResult (length scs) (length edges) fc pc fi
+
+||| CSP data for M2 generation: nodes with their canonical domains,
+||| and edges with lists of incompatible (domIdx_i, domIdx_j) pairs.
+public export
+record CSPData where
+  constructor MkCSPData
+  cspNodes : List (Nat, List String)  -- (scIdx, list of canonical forms)
+  cspEdges : List (Nat, Nat, List (String, String))  -- (i, j, incompatible index pairs)
+  cspResult : CSPResult
+
+||| Find incompatible pairs for an edge: pairs where overlap-restricted
+||| canonical forms do NOT match.
+incompatPairsForEdge : SubCube -> SubCube -> List Formula -> List Formula -> List (String, String)
+incompatPairsForEdge sci scj domI domJ =
+  let indexedI = zip (map show [0 .. minus (length domI) 1]) domI
+      indexedJ = zip (map show [0 .. minus (length domJ) 1]) domJ
+  in concatMap (\(idxI, fi) =>
+    mapMaybe (\(idxJ, fj) =>
+      let canI = canonical (overlapRestrict sci scj fi)
+          canJ = canonical (overlapRestrict scj sci fj)
+      in if canI /= canJ then Just (idxI, idxJ) else Nothing
+    ) indexedJ
+  ) indexedI
+
+||| Build the full CSP data for M2 generation.
+export
+buildCSPData : (n : Nat) -> (d : Nat) -> (maxSize : Nat) -> Bits32 -> CSPData
+buildCSPData n d maxSize targetTT =
+  let subRes = enumerate d maxSize
+      scs = allSubCubes n d
+      edges = structuralEdges scs
+      domains = map (getDomain n targetTT subRes) scs
+      -- Build nodes: (index, canonical domain strings)
+      nodes = zipWith (\i, dom => (i, map canonical dom))
+                [0 .. minus (length scs) 1] domains
+      -- Build edges with incompatible pairs
+      edgesWithPairs = map (\(i, j) =>
+        let sci = orDefault (MkSubCube [] []) (indexList i scs)
+            scj = orDefault (MkSubCube [] []) (indexList j scs)
+            domI = orDefault [] (indexList i domains)
+            domJ = orDefault [] (indexList j domains)
+            pairs = incompatPairsForEdge sci scj domI domJ
+        in (i, j, pairs)) edges
+      -- Also compute classification counts
+      classifications = map (classifyOneEdge scs domains) edges
+      fc = length (filter isFullyCompat classifications)
+      pc = length (filter isPartialCompat classifications)
+      fi = length (filter isFullyIncompat classifications)
+      res = MkCSPResult (length scs) (length edges) fc pc fi
+  in MkCSPData nodes edgesWithPairs res

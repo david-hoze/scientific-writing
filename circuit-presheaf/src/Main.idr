@@ -7,6 +7,9 @@ import Circuit.Enumerate
 import Analysis.RestrictionImage
 import Analysis.SubCube
 import Analysis.CompatCSP
+import Algebra.M2Gen
+import Algebra.M2Parse
+import Algebra.NSDriver
 import Data.SortedMap
 import Data.List
 import Data.String
@@ -47,9 +50,14 @@ main = do
     [_, "convergence"] => runConvergence 3 5
     [_, "bent", "--size", sStr] =>
       case parsePositive sStr of
-        Just s => runBent (cast {to=Nat} s)
+        Just s => runBent (cast {to=Nat} s) Nothing
         _ => putStrLn "Error: --size must be a positive integer"
-    [_, "bent"] => runBent 4
+    [_, "bent", "--size", sStr, "--m2gen", outFile] =>
+      case parsePositive sStr of
+        Just s => runBent (cast {to=Nat} s) (Just outFile)
+        _ => putStrLn "Error: --size must be a positive integer"
+    [_, "bent"] => runBent 4 Nothing
+    [_, "m2run", scriptFile] => runM2Command scriptFile
     _ => do putStrLn "circuit-presheaf - Boolean formula presheaf analysis"
             putStrLn ""
             putStrLn "Usage:"
@@ -57,6 +65,8 @@ main = do
             putStrLn "  circuit-presheaf scaling --max-size S"
             putStrLn "  circuit-presheaf convergence --dim D --max-size S"
             putStrLn "  circuit-presheaf bent --size S"
+            putStrLn "  circuit-presheaf bent --size S --m2gen FILE.m2"
+            putStrLn "  circuit-presheaf m2run FILE.m2"
   where
     runEnumerate : Nat -> Nat -> IO ()
     runEnumerate d maxS = do
@@ -99,16 +109,33 @@ main = do
             ++ " | " ++ show (maxImage ri)
             ++ " | " ++ show (sigma ri)
 
-    runBent : Nat -> IO ()
-    runBent maxS = do
+    runBent : Nat -> Maybe String -> IO ()
+    runBent maxS m2file = do
       -- Inner product bent function: (x0 AND x1) XOR (x2 AND x3)
       -- Truth table: 0x7888
       let bentTT : Bits32 = 0x7888
       putStrLn $ "BENT analysis: n=4, d=2, s<=" ++ show maxS
       putStrLn $ "Function: (x0 AND x1) XOR (x2 AND x3), TT=0x7888"
-      let csp = buildCSPForFunction 4 2 maxS bentTT
+      let cspData = buildCSPData 4 2 maxS bentTT
+      let csp = cspResult cspData
       putStrLn $ "Sub-cubes: " ++ show (nodeCount csp)
       putStrLn $ "Structural edges: " ++ show (edgeCount csp)
       putStrLn $ "Fully compatible: " ++ show (fullyCompatible csp)
       putStrLn $ "Partially compatible: " ++ show (partiallyCompatible csp)
       putStrLn $ "Fully incompatible: " ++ show (fullyIncompatible csp)
+      case m2file of
+        Nothing => pure ()
+        Just outFile => do
+          let nodes = map (\(i, dom) => MkCSPNode i dom) (cspNodes cspData)
+          let script = generateM2Script nodes (cspEdges cspData)
+          runPipeline outFile script
+
+    runM2Command : String -> IO ()
+    runM2Command scriptFile = do
+      Right output <- runM2 scriptFile
+        | Left msg => putStrLn msg
+      let results = parseM2Output output
+      putStrLn $ "M2 results: " ++ show results
+      if isUnsat results
+        then putStrLn "System is UNSATISFIABLE"
+        else putStrLn "System is SATISFIABLE (or inconclusive)"
