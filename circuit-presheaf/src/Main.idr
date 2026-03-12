@@ -5,6 +5,8 @@ import Circuit.Canonical
 import Circuit.Restriction
 import Circuit.Enumerate
 import Analysis.RestrictionImage
+import Analysis.SubCube
+import Analysis.CompatCSP
 import Data.SortedMap
 import Data.List
 import Data.String
@@ -43,12 +45,18 @@ main = do
         (Just d, Just s) => runConvergence (cast {to=Nat} d) (cast {to=Nat} s)
         _ => putStrLn "Error: --dim and --max-size must be positive integers"
     [_, "convergence"] => runConvergence 3 5
+    [_, "bent", "--size", sStr] =>
+      case parsePositive sStr of
+        Just s => runBent (cast {to=Nat} s)
+        _ => putStrLn "Error: --size must be a positive integer"
+    [_, "bent"] => runBent 4
     _ => do putStrLn "circuit-presheaf - Boolean formula presheaf analysis"
             putStrLn ""
             putStrLn "Usage:"
             putStrLn "  circuit-presheaf enumerate --dim D --max-size S"
             putStrLn "  circuit-presheaf scaling --max-size S"
             putStrLn "  circuit-presheaf convergence --dim D --max-size S"
+            putStrLn "  circuit-presheaf bent --size S"
   where
     runEnumerate : Nat -> Nat -> IO ()
     runEnumerate d maxS = do
@@ -90,3 +98,17 @@ main = do
           putStrLn $ show s ++ " | " ++ show (universeSize ri)
             ++ " | " ++ show (maxImage ri)
             ++ " | " ++ show (sigma ri)
+
+    runBent : Nat -> IO ()
+    runBent maxS = do
+      -- Inner product bent function: (x0 AND x1) XOR (x2 AND x3)
+      -- Truth table: 0x7888
+      let bentTT : Bits32 = 0x7888
+      putStrLn $ "BENT analysis: n=4, d=2, s<=" ++ show maxS
+      putStrLn $ "Function: (x0 AND x1) XOR (x2 AND x3), TT=0x7888"
+      let csp = buildCSPForFunction 4 2 maxS bentTT
+      putStrLn $ "Sub-cubes: " ++ show (nodeCount csp)
+      putStrLn $ "Structural edges: " ++ show (edgeCount csp)
+      putStrLn $ "Fully compatible: " ++ show (fullyCompatible csp)
+      putStrLn $ "Partially compatible: " ++ show (partiallyCompatible csp)
+      putStrLn $ "Fully incompatible: " ++ show (fullyIncompatible csp)
