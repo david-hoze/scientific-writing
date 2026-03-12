@@ -1,0 +1,20 @@
+package circuit-presheaf
+version = "0.1.0"
+
+sourcedir = "src"
+depends = base, contrib
+
+modules = Circuit.Formula
+        , Circuit.Canonical
+        , Circuit.Restriction
+        , Circuit.Enumerate
+        , Analysis.SubCube
+        , Analysis.RestrictionImage
+        , Analysis.CompatCSP
+        , Algebra.M2Gen
+        , Algebra.M2Parse
+        , Algebra.NSDriver
+        , Main
+
+main = Main
+executable = circuit-presheaf
