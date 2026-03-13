@@ -59,35 +59,37 @@ exactlyOneConstraint n =
 genExactlyOne : List CSPNode -> List String
 genExactlyOne = map exactlyOneConstraint
 
-||| Generate incompatibility constraints for an edge.
-genIncompat : CSPNode -> CSPNode -> List (String, String) -> List String
-genIncompat ni nj incompatPairs =
-  map showPair incompatPairs
-  where
-    showPair : (String, String) -> String
-    showPair (di, dj) =
-      showVar (MkCSPVar (scIdx ni) (cast di)) ++ " * " ++ showVar (MkCSPVar (scIdx nj) (cast dj))
+||| Generate incompatibility constraints from canonical groups.
+||| Two domain elements are incompatible if they belong to DIFFERENT
+||| canonical groups. We emit v_i_a * v_j_b for each such pair.
+genIncompatFromGroups : Nat -> Nat -> CanonGroups -> CanonGroups -> List String
+genIncompatFromGroups ni nj grpI grpJ =
+  let keysI = SortedMap.toList grpI
+      keysJ = SortedMap.toList grpJ
+  in concatMap (\(keyI, idsI) =>
+    concatMap (\(keyJ, idsJ) =>
+      if keyI /= keyJ
+        then concatMap (\idI =>
+          map (\idJ =>
+            showVar (MkCSPVar ni idI) ++ " * " ++ showVar (MkCSPVar nj idJ)
+          ) idsJ
+        ) idsI
+        else []
+    ) keysJ
+  ) keysI
 
-findNode : Nat -> List CSPNode -> Maybe CSPNode
-findNode _ [] = Nothing
-findNode idx (n :: ns) = if scIdx n == idx then Just n else findNode idx ns
+processEdgeGroups : CSPEdgeGroups -> List String
+processEdgeGroups eg =
+  genIncompatFromGroups (edgeI eg) (edgeJ eg) (groupsI eg) (groupsJ eg)
 
-processEdge : List CSPNode -> (Nat, Nat, List (String, String)) -> List String
-processEdge nodes (i, j, pairs) =
-  case (findNode i nodes, findNode j nodes) of
-    (Just a, Just b) => genIncompat a b pairs
-    _ => []
-
-||| Generate a complete Macaulay2 script for a CSP.
+||| Generate a complete Macaulay2 script from CSP data.
 export
-generateM2Script : List CSPNode
-               -> List (Nat, Nat, List (String, String))
-               -> String
-generateM2Script nodes edges =
+generateM2FromCSP : List CSPNode -> List CSPEdgeGroups -> String
+generateM2FromCSP nodes edges =
   let ring = genRing nodes
       boolCons = genBoolean nodes
       onesCons = genExactlyOne nodes
-      incompCons = concatMap (processEdge nodes) edges
+      incompCons = concatMap processEdgeGroups edges
       allCons = boolCons ++ onesCons ++ incompCons
       idealStr = "I = ideal(\n  "
         ++ fastConcat (intersperse ",\n  " allCons)

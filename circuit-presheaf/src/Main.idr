@@ -14,6 +14,7 @@ import Data.SortedMap
 import Data.List
 import Data.String
 import System
+import System.File
 
 %default covering
 
@@ -109,15 +110,55 @@ main = do
             ++ " | " ++ show (maxImage ri)
             ++ " | " ++ show (sigma ri)
 
+    runBentM2 : Nat -> String -> IO ()
+    runBentM2 maxS outFile = do
+      putStrLn $ "runBentM2 called with maxS=" ++ show maxS
+      let bentTT : Bits32 = 0x7888
+      let subRes = enumerate 2 maxS
+      putStrLn $ "  Total: " ++ show (totalCount subRes)
+      let scs = allSubCubes 4 2
+      let domains = map (getDomain 4 bentTT subRes) scs
+      putStrLn $ "  Sizes: " ++ show (map length domains)
+      let nodes = zipWith (\i, dom => MkCSPNode i (map canonical dom))
+                    [0 .. minus (length scs) 1] domains
+      putStrLn $ "  Nodes: " ++ show (length nodes)
+      let edges = structuralEdges scs
+      putStrLn $ "  Edges: " ++ show (length edges)
+      putStrLn "Computing overlap groups..."
+      let edgeGrps = map (\(i, j) =>
+            let sci = orDefault (MkSubCube [] []) (indexList i scs)
+                scj = orDefault (MkSubCube [] []) (indexList j scs)
+                domI = orDefault [] (indexList i domains)
+                domJ = orDefault [] (indexList j domains)
+            in MkCSPEdgeGroups i j
+                 (overlapGroups sci scj domI)
+                 (overlapGroups scj sci domJ)) edges
+      putStrLn $ "  Groups: " ++ show (length edgeGrps)
+      putStrLn "Generating M2 script..."
+      let script = generateM2FromCSP nodes edgeGrps
+      putStrLn $ "Script length: " ++ show (length script)
+      Right () <- writeFile outFile script
+        | Left err => putStrLn $ "Error writing: " ++ show err
+      putStrLn $ "M2 script written to: " ++ outFile
+      let totalVars = foldl (\acc, n => acc + length (domain n)) 0 nodes
+      if totalVars <= 100
+        then do
+          putStrLn "Running M2 (small instance)..."
+          Right output <- runM2 outFile
+            | Left msg => putStrLn msg
+          let results = parseM2Output output
+          putStrLn $ "M2 results: " ++ show results
+          if isUnsat results
+            then putStrLn "System is UNSATISFIABLE"
+            else putStrLn "System is SATISFIABLE (or inconclusive)"
+        else putStrLn $ "Skipping M2 execution (" ++ show totalVars ++ " variables, run manually: M2 --script " ++ outFile
+
     runBent : Nat -> Maybe String -> IO ()
     runBent maxS m2file = do
-      -- Inner product bent function: (x0 AND x1) XOR (x2 AND x3)
-      -- Truth table: 0x7888
       let bentTT : Bits32 = 0x7888
       putStrLn $ "BENT analysis: n=4, d=2, s<=" ++ show maxS
       putStrLn $ "Function: (x0 AND x1) XOR (x2 AND x3), TT=0x7888"
-      let cspData = buildCSPData 4 2 maxS bentTT
-      let csp = cspResult cspData
+      let csp = buildCSPForFunction 4 2 maxS bentTT
       putStrLn $ "Sub-cubes: " ++ show (nodeCount csp)
       putStrLn $ "Structural edges: " ++ show (edgeCount csp)
       putStrLn $ "Fully compatible: " ++ show (fullyCompatible csp)
@@ -125,10 +166,7 @@ main = do
       putStrLn $ "Fully incompatible: " ++ show (fullyIncompatible csp)
       case m2file of
         Nothing => pure ()
-        Just outFile => do
-          let nodes = map (\(i, dom) => MkCSPNode i dom) (cspNodes cspData)
-          let script = generateM2Script nodes (cspEdges cspData)
-          runPipeline outFile script
+        Just outFile => runBentM2 maxS outFile
 
     runM2Command : String -> IO ()
     runM2Command scriptFile = do
