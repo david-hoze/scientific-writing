@@ -14,3 +14,4 @@ Boolean formula presheaf analysis in Idris2 with Macaulay2 algebra backend.
 - [Test Vectors](Test-Vectors.md) - Known-good values for validation
 - [Performance](Performance.md) - Requirements and optimization notes
 - [Build Order](Build-Order.md) - Module dependency and implementation sequence
+- [M2 Pipeline Report](M2-Pipeline-Report.md) - Scaling results and feasibility analysis
