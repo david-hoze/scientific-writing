@@ -54,7 +54,9 @@ The original approach stored all incompatible pairs explicitly: O(|D_i| * |D_j|)
 | 3 | 2,828 | ~700 | ~6,000 | No |
 | 4 | 36,052 | 9,624 | ~80,000 | No |
 
-**Key finding**: M2 Groebner basis computation is doubly exponential in the number of variables. The BENT CSP at size 0 (88 variables) solves in under 1 second. At size 2 (620 variables), M2 cannot complete within 5 minutes. This confirms the theoretical expectation: algebraic methods are useful for small, targeted sub-instances rather than the full CSP.
+**Key finding**: M2 itself is the bottleneck, not our Idris2 code. The circuit-presheaf tool generates the M2 script in seconds even at size 2, but M2's Groebner basis computation is doubly exponential in the number of variables. At size 0 (88 variables) M2 solves in under 1 second. At size 2 (620 variables) M2 hangs indefinitely -- we tested with a 5-minute timeout and got no output. The Idris2 pipeline (enumeration, domain computation, overlap groups, script generation) completes in under 10 seconds at size 2. The wall is purely on the computer algebra side.
+
+This was initially misdiagnosed as an Idris2 memory or performance bug. The symptom was the program appearing to hang with no output. Investigation revealed: (1) M2's `system` call to check version was blocking, and (2) once that was bypassed, M2's `--script` execution itself never terminated on the 620-variable, 9000-line ideal.
 
 ## Results
 
@@ -63,10 +65,10 @@ The original approach stored all incompatible pairs explicitly: O(|D_i| * |D_j|)
 M2 results: [SAT]
 System is SATISFIABLE (or inconclusive)
 ```
-At the smallest size budget, the CSP has many compatible choices and the system is satisfiable.
+At the smallest size budget, the CSP has many compatible choices and the system is satisfiable. M2 completes in under 1 second.
 
 ### Size 2
-Script generated (167,293 characters, 8,998 lines) but M2 execution skipped. The script is available for offline analysis or for running on a more powerful machine.
+The Idris2 pipeline generates a correct M2 script (167,293 characters, 8,998 lines, 620 variables) in ~5 seconds. However, running `M2 --script bent_s2.m2` does not terminate within 5 minutes. The script is available for offline analysis on more powerful hardware or with alternative solvers.
 
 ## Recommendations
 
