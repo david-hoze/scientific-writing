@@ -11,7 +11,9 @@ import Algebra.M2Gen
 import Algebra.M2Parse
 import Algebra.NSDriver
 import Data.SortedMap
+import Data.SortedSet
 import Data.List
+import Data.Bits
 import Data.String
 import System
 import System.File
@@ -66,6 +68,27 @@ main = do
       case parsePositive sStr of
         Just s => runBentSub (cast {to=Nat} s) 6 outFile
         _ => putStrLn "Error: --size must be a positive integer"
+    [_, "test", "--tt", ttStr, "--size", sStr] =>
+      case (parsePositive ttStr, parsePositive sStr) of
+        (Just tt, Just s) => runTest (cast {to=Bits32} tt) (cast {to=Nat} s)
+        _ => putStrLn "Error: --tt and --size must be positive integers"
+    [_, "test", "--tt", ttStr] =>
+      case parsePositive ttStr of
+        Just tt => runTest (cast {to=Bits32} tt) 4
+        _ => putStrLn "Error: --tt must be a positive integer"
+    [_, "test-m2", "--tt", ttStr, "--size", sStr, "--nodes", nStr, "--m2gen", outFile] =>
+      case (parsePositive ttStr, parsePositive sStr, parsePositive nStr) of
+        (Just tt, Just s, Just n) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} s) (cast {to=Nat} n) outFile
+        _ => putStrLn "Error: --tt, --size, --nodes must be positive integers"
+    [_, "test-m2", "--tt", ttStr, "--size", sStr, "--m2gen", outFile] =>
+      case (parsePositive ttStr, parsePositive sStr) of
+        (Just tt, Just s) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} s) 24 outFile
+        _ => putStrLn "Error: --tt and --size must be positive integers"
+    [_, "scan"] => runScan 4 2
+    [_, "scan", "--top", kStr] =>
+      case parsePositive kStr of
+        Just k => runScanTop 4 2 (cast {to=Nat} k)
+        _ => putStrLn "Error: --top must be a positive integer"
     [_, "m2run", scriptFile] => runM2Command scriptFile
     _ => do putStrLn "circuit-presheaf - Boolean formula presheaf analysis"
             putStrLn ""
@@ -76,8 +99,25 @@ main = do
             putStrLn "  circuit-presheaf bent --size S"
             putStrLn "  circuit-presheaf bent --size S --m2gen FILE.m2"
             putStrLn "  circuit-presheaf bent-sub --size S [--nodes N] --m2gen FILE.m2"
+            putStrLn "  circuit-presheaf test --tt TT [--size S]"
+            putStrLn "  circuit-presheaf test-m2 --tt TT --size S [--nodes N] --m2gen FILE.m2"
+            putStrLn "  circuit-presheaf scan [--top K]"
             putStrLn "  circuit-presheaf m2run FILE.m2"
   where
+    hexDigit : Bits32 -> Char
+    hexDigit 0 = '0'; hexDigit 1 = '1'; hexDigit 2 = '2'; hexDigit 3 = '3'
+    hexDigit 4 = '4'; hexDigit 5 = '5'; hexDigit 6 = '6'; hexDigit 7 = '7'
+    hexDigit 8 = '8'; hexDigit 9 = '9'; hexDigit 10 = 'a'; hexDigit 11 = 'b'
+    hexDigit 12 = 'c'; hexDigit 13 = 'd'; hexDigit 14 = 'e'; hexDigit 15 = 'f'
+    hexDigit _ = '?'
+
+    toHex : Bits32 -> String
+    toHex n = "0x" ++ go n ""
+      where
+        go : Bits32 -> String -> String
+        go 0 "" = "0"
+        go 0 acc = acc
+        go v acc = go (v `shiftR` 4) (singleton (hexDigit (v .&. 0xF)) ++ acc)
     runEnumerate : Nat -> Nat -> IO ()
     runEnumerate d maxS = do
       putStrLn $ "Enumerating d=" ++ show d ++ " up to size " ++ show maxS
@@ -196,7 +236,7 @@ main = do
       putStrLn $ "  Empty domains: " ++ show (emptyDomainNodes res)
       -- Find the node with the largest domain as seed
       let topNodes = topNodesByDomain 1 cspData
-      let seed = case topNodes of (s :: _) => s; [] => 0
+      let seed : Nat = case topNodes of (s :: _) => s; [] => 0
       putStrLn $ "Seed node: " ++ show seed
       -- BFS expand to numNodes neighbors
       let subNodes = bfsExpand seed numNodes cspData
@@ -222,6 +262,125 @@ main = do
             then putStrLn "Sub-instance is UNSATISFIABLE"
             else putStrLn "Sub-instance is SATISFIABLE"
         else putStrLn $ "Too large for auto-run (" ++ show totalVars ++ " vars). Run: M2 --script " ++ outFile
+
+    ||| Count distinct sub-function truth tables for a given global function.
+    countDistinctSubFunctions : (n : Nat) -> (d : Nat) -> Bits32 -> Nat
+    countDistinctSubFunctions n d tt =
+      let scs = allSubCubes n d
+          tts = map (subFunction n tt) scs
+          unique = foldl (\s, t => SortedSet.insert t s) SortedSet.empty tts
+      in length (SortedSet.toList unique)
+
+    runTest : Bits32 -> Nat -> IO ()
+    runTest targetTT maxS = do
+      let n : Nat = 4
+      let d : Nat = 2
+      putStrLn $ "Function TT=" ++ toHex targetTT ++ " (" ++ show targetTT ++ " dec)"
+      putStrLn $ "  n=" ++ show n ++ ", d=" ++ show d
+      let nDistinct = countDistinctSubFunctions n d targetTT
+      putStrLn $ "  Distinct sub-functions: " ++ show nDistinct ++ "/16"
+      putStrLn $ "s<= | empty | struct C/P/I | semantic C/I"
+      putStrLn $ "----|-------|-------------|-------------"
+      let printSize : Nat -> IO ()
+          printSize s = do
+            let csp = buildCSPForFunction n d s targetTT
+            let sem = buildCSPSemantic n d s targetTT
+            putStrLn $ show s
+              ++ " | " ++ show (emptyDomainNodes csp)
+              ++ " | " ++ show (fullyCompatible csp) ++ "/" ++ show (partiallyCompatible csp) ++ "/" ++ show (fullyIncompatible csp)
+              ++ " | " ++ show (fullyCompatible sem) ++ "/" ++ show (fullyIncompatible sem)
+      let sizes : List Nat = case maxS of Z => [0]; S k => [0 .. S k]
+      traverse_ printSize sizes
+
+    runTestM2 : Bits32 -> Nat -> Nat -> String -> IO ()
+    runTestM2 targetTT maxS numNodes outFile = do
+      putStrLn $ "M2 test: TT=" ++ toHex targetTT ++ ", s<=" ++ show maxS ++ ", nodes=" ++ show numNodes
+      let cspData = buildCSPData 4 2 maxS targetTT
+      let res = cspResult cspData
+      putStrLn $ "Full CSP: " ++ show (nodeCount res) ++ " nodes, " ++ show (edgeCount res) ++ " edges"
+      putStrLn $ "  Empty domains: " ++ show (emptyDomainNodes res)
+      let topNodes = topNodesByDomain 1 cspData
+      let seed : Nat = case topNodes of (s :: _) => s; [] => 0
+      putStrLn $ "Seed node: " ++ show seed
+      let subNodes = bfsExpand seed numNodes cspData
+      putStrLn $ "Sub-instance nodes (" ++ show (length subNodes) ++ "): " ++ show subNodes
+      let subCSP = extractSubInstance subNodes cspData
+      let m2Nodes = map (\(i, dom) => MkCSPNode i dom) (cspNodes subCSP)
+      let totalVars = foldl (\acc, n => acc + length (domain n)) 0 m2Nodes
+      putStrLn $ "Variables: " ++ show totalVars
+      putStrLn $ "Edges: " ++ show (length (cspEdgeGroups subCSP))
+      let script = generateM2FromCSP m2Nodes (cspEdgeGroups subCSP)
+      Right () <- writeFile outFile script
+        | Left err => putStrLn $ "Error writing: " ++ show err
+      putStrLn $ "M2 script written to: " ++ outFile
+      if totalVars <= 100
+        then do
+          putStrLn "Running M2..."
+          Right output <- runM2 outFile
+            | Left msg => putStrLn msg
+          let results = parseM2Output output
+          putStrLn $ "M2 results: " ++ show results
+          if isUnsat results
+            then putStrLn "UNSATISFIABLE"
+            else putStrLn "SATISFIABLE (or inconclusive)"
+        else putStrLn $ "Too large for auto-run (" ++ show totalVars ++ " vars). Run: M2 --script " ++ outFile
+
+    ||| Scan all 2^(2^n) functions for sub-function diversity.
+    ||| Functions using more of the 2^(2^d) possible sub-functions are
+    ||| structurally more complex and better candidates for obstruction witnesses.
+    runScan : Nat -> Nat -> IO ()
+    runScan n d = do
+      let numFuncs : Nat = numFunctions n
+      putStrLn $ "Scanning " ++ show numFuncs ++ " functions at n=" ++ show n ++ ", d=" ++ show d
+      let scs = allSubCubes n d
+      putStrLn $ "Sub-cubes: " ++ show (length scs) ++ " (max possible sub-functions: " ++ show (numFunctions d) ++ ")"
+      let indices : List Nat = case numFuncs of Z => []; S m => [0 .. m]
+      let mkPair : Nat -> (Bits32, Nat)
+          mkPair i = let tt : Bits32 = cast i in (tt, countDistinctSubFunctions n d tt)
+      let results = map mkPair indices
+      let maxDist : Nat = foldl (\mx, (_, nd) => if nd > mx then nd else mx) (the Nat 0) results
+      putStrLn $ "Max distinct sub-functions: " ++ show maxDist
+      putStrLn "Distinct sub-funcs | # functions"
+      putStrLn "-------------------|------------"
+      let levels : List Nat = case maxDist of Z => [0]; S m => [0 .. S m]
+      let printLevel : Nat -> IO ()
+          printLevel level =
+            let count = length (filter (\(_, nd) => nd == level) results)
+            in when (count > 0) $
+              putStrLn $ show level ++ " | " ++ show count
+      traverse_ printLevel levels
+
+    ||| Show top-K functions with most diverse sub-functions.
+    ||| Also shows specific candidate functions (parity, majority, etc.)
+    runScanTop : Nat -> Nat -> Nat -> IO ()
+    runScanTop n d k = do
+      let numFuncs : Nat = numFunctions n
+      putStrLn $ "Scanning " ++ show numFuncs ++ " functions, showing top " ++ show k
+      let scs = allSubCubes n d
+      let indices : List Nat = case numFuncs of Z => []; S k' => [0 .. k']
+      let mkPair : Nat -> (Bits32, Nat)
+          mkPair i = let tt : Bits32 = cast i in (tt, countDistinctSubFunctions n d tt)
+      let results = map mkPair indices
+      let sorted = sortBy (\(_, a), (_, b) => compare b a) results
+      let top = take k sorted
+      putStrLn "TT (hex) | distinct sub-funcs"
+      putStrLn "---------|-------------------"
+      let printRow : (Bits32, Nat) -> IO ()
+          printRow (tt, nd) = putStrLn $ "0x" ++ show tt ++ " | " ++ show nd
+      traverse_ printRow top
+      -- Named candidates
+      putStrLn ""
+      putStrLn "Named candidates:"
+      let candidates : List (String, Bits32) =
+            [ ("BENT (x0∧x1)⊕(x2∧x3)", 0x7888)
+            , ("Parity x0⊕x1⊕x2⊕x3", 0x6996)
+            , ("Majority (>=3 of 4)", 0xFEE8)
+            , ("Threshold-2 (>=2)", 0x7F80)
+            ]
+      let printCandidate : (String, Bits32) -> IO ()
+          printCandidate (name, tt) =
+            putStrLn $ "  " ++ name ++ " (0x" ++ show tt ++ "): " ++ show (countDistinctSubFunctions n d tt) ++ " distinct sub-funcs"
+      traverse_ printCandidate candidates
 
     runM2Command : String -> IO ()
     runM2Command scriptFile = do
