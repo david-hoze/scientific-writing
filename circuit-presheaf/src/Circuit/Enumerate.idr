@@ -93,7 +93,10 @@ enumerate d maxSize =
   let -- Add leaves (size 0)
       res0 = foldl (\r, f => fst (addFormula d f r)) emptyResult (leaves d)
       -- Generate sizes 1 through maxSize
-  in foldl (\r, s => generateSize d s r) res0 [1 .. maxSize]
+      -- Note: [1..0] for Nat counts down to [1,0], so guard explicitly
+  in case maxSize of
+       Z => res0
+       S _ => foldl (\r, s => generateSize d s r) res0 [1 .. maxSize]
 
 ||| Count of formulas at each size level.
 export

@@ -17,18 +17,14 @@ writeM2Script filename content = writeFile filename content
 export
 runM2 : String -> IO (Either String String)
 runM2 scriptFile = do
-  ret <- Sys.system "M2 --version > /dev/null 2>&1"
+  let outFile = scriptFile ++ ".out"
+  ret <- system ("bash -c 'M2 --script " ++ scriptFile ++ " > " ++ outFile ++ " 2>&1'")
   if ret /= 0
-    then pure (Left "Macaulay2 (M2) not found on PATH. Install M2 or run the generated .m2 script manually.")
+    then pure (Left ("M2 exited with code " ++ show ret ++ ". Check " ++ outFile))
     else do
-      let outFile = scriptFile ++ ".out"
-      ret2 <- system ("M2 --script " ++ scriptFile ++ " > " ++ outFile ++ " 2>&1")
-      if ret2 /= 0
-        then pure (Left ("M2 exited with code " ++ show ret2))
-        else do
-          Right content <- readFile outFile
-            | Left err => pure (Left ("Could not read M2 output: " ++ show err))
-          pure (Right content)
+      Right content <- readFile outFile
+        | Left err => pure (Left ("Could not read M2 output: " ++ show err))
+      pure (Right content)
 
 ||| Full pipeline: write script, run M2 (if available), parse output.
 export

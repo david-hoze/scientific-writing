@@ -12,12 +12,14 @@ substitute (Not c) i v = Not (substitute c i v)
 substitute (And l r) i v = And (substitute l i v) (substitute r i v)
 substitute (Or l r) i v = Or (substitute l i v) (substitute r i v)
 
-||| Propagate constants bottom-up.
+||| Propagate constants and simplify bottom-up.
+||| Handles: constant folding, double negation, idempotence.
 propagate : Formula -> Formula
 propagate (Input j) = Input j
 propagate (Const b) = Const b
 propagate (Not c) = case propagate c of
   Const b => Const (not b)
+  Not c'  => c'               -- double negation: NOT(NOT(x)) → x
   c'      => Not c'
 propagate (And l r) = case (propagate l, propagate r) of
   (Const False, _) => Const False

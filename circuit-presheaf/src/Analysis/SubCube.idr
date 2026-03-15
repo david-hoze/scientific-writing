@@ -115,6 +115,11 @@ subFunction n tt sc = go (pow2 (length (freeCoords sc))) 0 0
                  else acc
       in go r (S idx) acc'
 
+||| Number of shared free coordinates between two sub-cubes.
+export
+overlapDim : SubCube -> SubCube -> Nat
+overlapDim a b = length (filter (\c => elem c (freeCoords b)) (freeCoords a))
+
 ||| Find the index of an element in a list.
 export
 indexOf : Nat -> List Nat -> Maybe Nat
