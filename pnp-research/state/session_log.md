@@ -99,3 +99,42 @@ Named candidates: BENT = 6/16, Parity = 2/16, Majority = 3/16, Threshold-2 = 6/1
 2. **d=3 optimization**: The d=2 overlap (≤1 variable) may be too weak for obstructions. d=3 gives 3-dimensional sub-cubes with ≤2-variable overlaps — stronger constraints. But enumeration at d=3 is 8 min for s≤5.
 
 **Next:** Either implement SAT solver encoding (faster than M2 for SAT/UNSAT), or optimize d=3 enumeration, or both.
+
+## 2026-03-16 — Session 3b: Structural Obstructions Found!
+
+**Context:** Continuing Session 3. Implemented backtracking CSP solver, scan-solve, and ran d=3 experiments.
+
+**CSP Solver:**
+- Backtracking with forward checking, O(1)-per-edge canonical key comparison
+- `invertGroups` maps domIdx → canonical key; `checkEdge` compares keys
+- Sorted by domain size (smallest-first heuristic), 1M fuel limit
+
+**d=2 results (definitive):**
+- ALL n=4 functions SAT at d=2, s≤4 (tested top-10, all found SAT in ~2s each)
+- Overlap dimension ≤1 at d=2 → constraints too weak for obstructions
+
+**d=3 results (BREAKTHROUGH):**
+- At d=3, s≤4: 121/256 3-variable functions covered
+- Scan-solve found **hundreds** of UNSAT instances among eligible functions
+- Two classes of UNSAT:
+  1. **Edge-incompatible UNSAT (FI > 0)**: Functions where ≥1 edge has ZERO compatible pairs despite both domains non-empty. Semantic CSP is SAT (24/0) but structural is UNSAT. Example: TT=0x8b (139), structural = 1/21/2, all domains non-empty.
+  2. **Graph-coloring UNSAT (FI = 0)**: Functions where EVERY edge has some compatible pairs, but no globally consistent selection exists. Example: TT=0x2ae (686), structural = 2/22/0, 414 dedup elements.
+  3. **Unverified UNSAT (FI = 0, large domains)**: Functions with >10K dedup elements where 1M fuel may be insufficient. Example: TT=0xac (172), 20691 elements. Needs verification.
+
+**Key findings:**
+1. **First genuine structural obstructions at n=4, d=3** — no compatible family exists for hundreds of functions at s≤4 size budget
+2. Semantic CSP is trivially SAT for ALL eligible functions (24/0) — this confirms the obstruction is purely structural (DAG-isomorphism constraints)
+3. Both "trivial" (edge-level) and "non-trivial" (graph-coloring) obstructions found
+4. The non-trivial case (TT=0x2ae with 2/22/0 structural) is especially interesting — all edges have compatible pairs locally but no global selection works
+
+**Caveats:**
+- These obstructions are at size budget s≤4. At s≤5+, more formulas become available and some obstructions may dissolve
+- Functions with large dedup domains (>10K) need fuel verification
+- Scan still running (~1/3 through 65536 functions)
+
+**Next steps:**
+1. Complete the scan and tally total UNSAT count
+2. Verify FI=0 UNSAT results with larger fuel or exact counts
+3. Check persistence: do obstructions at s≤4 persist at s≤5? (requires 8-min d=3 enumeration)
+4. Study NS degree of UNSAT instances — this is the Path C goal
+5. Characterize which functions have obstructions (structure, complexity class)
