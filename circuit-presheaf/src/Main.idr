@@ -23,6 +23,16 @@ import System.File
 
 %default covering
 
+||| Infer the number of variables from a truth table value.
+||| A truth table of an n-variable function uses 2^n bits,
+||| so the TT value is < 2^(2^n).
+inferN : Bits32 -> Nat
+inferN tt = if tt <= 3 then 1
+            else if tt <= 15 then 2
+            else if tt <= 255 then 3
+            else if tt <= 65535 then 4
+            else 5
+
 showSizeCounts : EnumResult -> String
 showSizeCounts res =
   let counts = sizeCounts res
@@ -123,11 +133,15 @@ main = do
       case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
         (Just tt, Just d, Just s) => runProfiles (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s) (Just outFile)
         _ => putStrLn "Error: all numeric args must be positive integers"
+    [_, "scan-solve", "--vars", nStr, "--dim", dStr, "--size", sStr] =>
+      case (parsePositive nStr, parsePositive dStr, parsePositive sStr) of
+        (Just nv, Just d, Just s) => runScanSolve (cast {to=Nat} nv) (cast {to=Nat} d) (cast {to=Nat} s)
+        _ => putStrLn "Error: --vars, --dim and --size must be positive integers"
     [_, "scan-solve", "--dim", dStr, "--size", sStr] =>
       case (parsePositive dStr, parsePositive sStr) of
-        (Just d, Just s) => runScanSolve (cast {to=Nat} d) (cast {to=Nat} s)
+        (Just d, Just s) => runScanSolve 4 (cast {to=Nat} d) (cast {to=Nat} s)
         _ => putStrLn "Error: --dim and --size must be positive integers"
-    [_, "scan-solve"] => runScanSolve 3 4
+    [_, "scan-solve"] => runScanSolve 4 3 4
     [_, "scan"] => runScan 4 2
     [_, "scan", "--top", kStr] =>
       case parsePositive kStr of
@@ -320,7 +334,7 @@ main = do
 
     runTest : Bits32 -> Nat -> Nat -> IO ()
     runTest targetTT d maxS = do
-      let n : Nat = 4
+      let n : Nat = inferN targetTT
       putStrLn $ "Function TT=" ++ toHex targetTT ++ " (" ++ show targetTT ++ " dec)"
       putStrLn $ "  n=" ++ show n ++ ", d=" ++ show d
       let nDistinct = countDistinctSubFunctions n d targetTT
@@ -342,7 +356,7 @@ main = do
     runTestM2 : Bits32 -> Nat -> Nat -> Nat -> String -> IO ()
     runTestM2 targetTT d maxS numNodes outFile = do
       putStrLn $ "M2 test: TT=" ++ toHex targetTT ++ ", d=" ++ show d ++ ", s<=" ++ show maxS ++ ", nodes=" ++ show numNodes
-      let cspData = buildCSPData 4 d maxS targetTT
+      let cspData = buildCSPData (inferN targetTT) d maxS targetTT
       let res = cspResult cspData
       putStrLn $ "Full CSP: " ++ show (nodeCount res) ++ " nodes, " ++ show (edgeCount res) ++ " edges"
       putStrLn $ "  Empty domains: " ++ show (emptyDomainNodes res)
@@ -374,7 +388,7 @@ main = do
 
     runProfiles : Bits32 -> Nat -> Nat -> Maybe String -> IO ()
     runProfiles targetTT d maxS m2file = do
-      let n : Nat = 4
+      let n : Nat = inferN targetTT
       putStrLn $ "Profile reduction: TT=" ++ toHex targetTT ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
       let cspData = buildCSPData n d maxS targetTT
       let res = cspResult cspData
@@ -409,7 +423,7 @@ main = do
 
     runSolve : Bits32 -> Nat -> Nat -> IO ()
     runSolve targetTT d maxS = do
-      let n : Nat = 4
+      let n : Nat = inferN targetTT
       putStrLn $ "Solving structural CSP: TT=" ++ toHex targetTT ++ ", n=" ++ show n ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
       let cspData = buildCSPData n d maxS targetTT
       let res = cspResult cspData
@@ -427,7 +441,7 @@ main = do
 
     runVSolve : Bits32 -> Nat -> Nat -> IO ()
     runVSolve targetTT d maxS = do
-      let n : Nat = 4
+      let n : Nat = inferN targetTT
       putStrLn $ "Verified solve: TT=" ++ toHex targetTT ++ ", n=" ++ show n ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
       let cspData = buildCSPData n d maxS targetTT
       let res = cspResult cspData
@@ -461,9 +475,8 @@ main = do
 
     ||| Scan all n=4 functions, find those with all domains non-empty at (d, s),
     ||| then solve their structural CSP.
-    runScanSolve : Nat -> Nat -> IO ()
-    runScanSolve d maxS = do
-      let n : Nat = 4
+    runScanSolve : Nat -> Nat -> Nat -> IO ()
+    runScanSolve n d maxS = do
       putStrLn $ "Scan-solve: n=" ++ show n ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
       putStrLn "Enumerating..."
       let subRes = enumerate d maxS
