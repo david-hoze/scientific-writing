@@ -341,3 +341,44 @@ The CDCL proof width (max intermediate resolvent = 17) equals the max at-least-o
 2. Consider alternative CNF encodings (log/order) or entirely different proof complexity approaches
 3. Commit scripts and findings
 4. Complete scan-solve (may need restart)
+
+## 2026-03-16 — Session 6b: Persistence Test + n=5 + ChatGPT Consultation
+
+**Obstruction persistence test (CRITICAL NEGATIVE RESULT):**
+- TT=686: **UNSAT at s≤4 → SAT at s≤5** (8 nodes, 7625 dedup elements, compatible family found)
+- TT=139: s≤5 test OOMs (too large), but inconclusive
+- **The structural obstructions at s≤4 are size-budget artifacts.** Like stiffness, they dissolve when more formulas become available. This significantly weakens the obstruction-based direction.
+
+**n=5 support added:**
+- `inferN` function derives n from truth table size (default n=4 for TT ≤ 65535, n=5 for larger)
+- Bug found and fixed: initially inferred n=3 for TT=139 (small TT ≠ small n)
+- n=5 TT=100000 at d=3, s≤3: 40 nodes, 480 edges, 35 empty-domain nodes
+- n=5 extension of TT=139 at s≤4: 40 nodes, 237K elements, UNSAT/fuel exhaustion (unverified)
+- n=5 computations are very slow (minutes per function at s≤4)
+
+**ChatGPT brainstorm consultation:**
+Five angles proposed. My verification:
+1. Alternative CNF encodings (log/order) — ⚠️ plausible, testable
+2. Lifting theorems — ❌ blocked (proof too shallow to lift)
+3. Polynomial calculus degree — ❌ incorrect (PC degree ≤ NS degree, so PC ≤ 2)
+4. Obstruction counting — ✅ already planned
+5. Sheaf non-locality — ⚠️ too vague
+
+Key verification: PC degree ≤ NS degree because NS refutations are valid PC proofs. Since NS = 2, all algebraic proof systems are bounded at degree ≤ 2 for the one-hot 2-CSP encoding.
+
+**Reorganization:**
+- pnp-research/ reorganized into paper/, research/, archive/, scripts/ subdirectories
+- Root-level duplicates deleted
+- CLAUDE.md updated to match new structure
+
+**Assessment of Path C after all findings:**
+1. NS degree = 2 (dead)
+2. Resolution width = initial width (dead)
+3. PC degree ≤ NS degree ≤ 2 (dead)
+4. Obstructions dissolve at s≤5 (dead as persistent witnesses)
+5. Only remaining angle: alternative encodings or obstruction density scaling with n
+
+**Next:**
+1. Test more UNSAT functions at s≤5 to confirm dissolution pattern
+2. Focus on Path B (paper submission)
+3. Consider whether obstruction density scaling with n is worth pursuing

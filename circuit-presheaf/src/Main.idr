@@ -26,12 +26,10 @@ import System.File
 ||| Infer the number of variables from a truth table value.
 ||| A truth table of an n-variable function uses 2^n bits,
 ||| so the TT value is < 2^(2^n).
+||| Default: n=4 for TT <= 65535 (main research target),
+||| n=5 for larger TT values.
 inferN : Bits32 -> Nat
-inferN tt = if tt <= 3 then 1
-            else if tt <= 15 then 2
-            else if tt <= 255 then 3
-            else if tt <= 65535 then 4
-            else 5
+inferN tt = if tt <= 65535 then 4 else 5
 
 showSizeCounts : EnumResult -> String
 showSizeCounts res =
