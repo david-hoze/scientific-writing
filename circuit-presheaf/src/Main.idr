@@ -104,6 +104,14 @@ main = do
       case (parsePositive ttStr, parsePositive sStr) of
         (Just tt, Just s) => runSolve (cast {to=Bits32} tt) 2 (cast {to=Nat} s)
         _ => putStrLn "Error: --tt and --size must be positive integers"
+    [_, "profiles", "--tt", ttStr, "--dim", dStr, "--size", sStr] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
+        (Just tt, Just d, Just s) => runProfiles (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s) Nothing
+        _ => putStrLn "Error: all numeric args must be positive integers"
+    [_, "profiles", "--tt", ttStr, "--dim", dStr, "--size", sStr, "--m2gen", outFile] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
+        (Just tt, Just d, Just s) => runProfiles (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s) (Just outFile)
+        _ => putStrLn "Error: all numeric args must be positive integers"
     [_, "scan-solve", "--dim", dStr, "--size", sStr] =>
       case (parsePositive dStr, parsePositive sStr) of
         (Just d, Just s) => runScanSolve (cast {to=Nat} d) (cast {to=Nat} s)
@@ -127,6 +135,7 @@ main = do
             putStrLn "  circuit-presheaf test --tt TT [--size S]"
             putStrLn "  circuit-presheaf test-m2 --tt TT [--dim D] --size S [--nodes N] --m2gen FILE.m2"
             putStrLn "  circuit-presheaf solve --tt TT [--dim D] --size S"
+            putStrLn "  circuit-presheaf profiles --tt TT --dim D --size S [--m2gen FILE.m2]"
             putStrLn "  circuit-presheaf scan [--top K]"
             putStrLn "  circuit-presheaf m2run FILE.m2"
   where
@@ -350,6 +359,41 @@ main = do
             then putStrLn "UNSATISFIABLE"
             else putStrLn "SATISFIABLE (or inconclusive)"
         else putStrLn $ "Too large for auto-run (" ++ show totalVars ++ " vars). Run: M2 --script " ++ outFile
+
+    runProfiles : Bits32 -> Nat -> Nat -> Maybe String -> IO ()
+    runProfiles targetTT d maxS m2file = do
+      let n : Nat = 4
+      putStrLn $ "Profile reduction: TT=" ++ toHex targetTT ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
+      let cspData = buildCSPData n d maxS targetTT
+      let res = cspResult cspData
+      putStrLn $ "  Nodes: " ++ show (nodeCount res) ++ " (" ++ show (emptyDomainNodes res) ++ " empty)"
+      putStrLn $ "  Edges: " ++ show (edgeCount res)
+      let totalElems : Nat = foldl (\acc, (_, dom) => acc + length dom) (the Nat 0) (cspNodes cspData)
+      putStrLn $ "  Domain elements (dedup): " ++ show totalElems
+      -- Compute profiles per node
+      putStrLn "  Profiles per node:"
+      let edgeGrps = cspEdgeGroups cspData
+      let computeInfo : (Nat, List String) -> (Nat, Nat, Nat)
+          computeInfo (nodeIdx, dom) =
+            let domSize = length dom
+                profMap = computeNodeProfiles nodeIdx domSize edgeGrps
+                nProfiles = length (SortedMap.toList profMap)
+            in (nodeIdx, domSize, nProfiles)
+      let profileInfo = map computeInfo (cspNodes cspData)
+      let printInfo : (Nat, Nat, Nat) -> IO ()
+          printInfo (ni, ds, np) =
+            putStrLn $ "    node " ++ show ni ++ ": " ++ show ds ++ " elements -> " ++ show np ++ " profiles"
+      traverse_ printInfo profileInfo
+      let totalProfiles : Nat = foldl (\acc, (_, _, np) => acc + np) (the Nat 0) profileInfo
+      putStrLn $ "  Total variables (profile-reduced): " ++ show totalProfiles
+      putStrLn $ "  Reduction: " ++ show totalElems ++ " -> " ++ show totalProfiles
+      case m2file of
+        Nothing => pure ()
+        Just outFile => do
+          let dump = dumpCSP cspData
+          Right () <- writeFile outFile dump
+            | Left err => putStrLn $ "Error writing: " ++ show err
+          putStrLn $ "  CSP data written to: " ++ outFile
 
     runSolve : Bits32 -> Nat -> Nat -> IO ()
     runSolve targetTT d maxS = do

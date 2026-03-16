@@ -8,6 +8,7 @@ import Analysis.SubCube
 import Data.SortedMap
 import Data.SortedSet
 import Data.List
+import Data.List1
 import Data.Bits
 
 %default covering
@@ -373,6 +374,7 @@ record EdgeKeys where
 
 ||| Build edge keys from canonical groups.
 ||| groupsI maps canonical_key -> [domIdx], so we invert to domIdx -> canonical_key.
+export
 invertGroups : CanonGroups -> SortedMap Nat String
 invertGroups groups =
   foldl addEntries empty (SortedMap.toList groups)
@@ -441,3 +443,127 @@ solveCSP cspData fuel =
                  SatResult sol => SatResult sol
                  UnsatResult => tryValues nodeIdx (S idx) domSize rest assignment edges (minus remaining 1)
           else tryValues nodeIdx (S idx) domSize rest assignment edges remaining
+
+--- Profile-based CSP reduction for NS degree ---
+
+||| A profile at node i: maps edge list index → canonical key.
+||| Elements with the same profile are completely interchangeable.
+Profile : Type
+Profile = SortedMap Nat String
+
+profileToString : Profile -> String
+profileToString p = fastConcat (intersperse "|" (map (\(k, v) => show k ++ ":" ++ v) (SortedMap.toList p)))
+
+||| Reduced CSP node: profiles and their edge keys.
+public export
+record ProfileNode where
+  constructor MkProfileNode
+  pnNodeIdx : Nat
+  pnProfiles : List (Nat, Profile)  -- (profileIdx, profile)
+  pnOrigCount : Nat                  -- how many domain elements total
+
+||| Reduced CSP: one variable per profile per node.
+public export
+record ReducedCSP where
+  constructor MkReducedCSP
+  rcNodes : List ProfileNode
+  rcEdges : List (Nat, Nat, Nat)  -- (nodeI, nodeJ, edgeListIdx)
+  rcTotalVars : Nat
+
+||| Compute profiles for a single node.
+||| Returns: map from profile string → (list of domain indices with that profile)
+export
+computeNodeProfiles : Nat -> Nat -> List CSPEdgeGroups -> SortedMap String (List Nat)
+computeNodeProfiles nodeIdx domSize edgeGrps =
+  let -- Build inverted maps for each edge involving this node
+      edgeInverted : List (Nat, SortedMap Nat String)
+      edgeInverted = buildEdgeInverted 0 edgeGrps
+      -- For each domain element, compute its profile
+      domIdxs = the (List Nat) (case domSize of Z => []; S k => [0 .. k])
+  in foldl (\m, idx =>
+    let prof = buildProfileStr idx edgeInverted
+    in case lookup prof m of
+         Nothing => insert prof [idx] m
+         Just ids => insert prof (idx :: ids) m
+  ) empty domIdxs
+  where
+    buildEdgeInverted : Nat -> List CSPEdgeGroups -> List (Nat, SortedMap Nat String)
+    buildEdgeInverted _ [] = []
+    buildEdgeInverted eidx (eg :: rest) =
+      let invMap = if edgeI eg == nodeIdx then invertGroups (groupsI eg)
+                   else if edgeJ eg == nodeIdx then invertGroups (groupsJ eg)
+                   else empty
+          tail = buildEdgeInverted (S eidx) rest
+      in if length (SortedMap.toList invMap) > 0
+         then (eidx, invMap) :: tail
+         else tail
+
+    buildProfileStr : Nat -> List (Nat, SortedMap Nat String) -> String
+    buildProfileStr idx edges =
+      let keys = map (\(eidx, m) =>
+            let keyStr = case lookup idx m of
+                           Just k => k
+                           Nothing => "?"
+            in show eidx ++ ":" ++ keyStr) edges
+      in fastConcat (intersperse "|" keys)
+
+||| Build a reduced CSP using profile-based compression.
+export
+reduceCSP : CSPData -> ReducedCSP
+reduceCSP cspData =
+  let edgeGrps = cspEdgeGroups cspData
+      nodes = cspNodes cspData
+      profileNodes = map (buildProfileNode edgeGrps) nodes
+      edgeList = buildEdgeList 0 edgeGrps
+      totalVars = foldl (\acc, pn => acc + length (pnProfiles pn)) (the Nat 0) profileNodes
+  in MkReducedCSP profileNodes edgeList totalVars
+  where
+    buildProfileNode : List CSPEdgeGroups -> (Nat, List String) -> ProfileNode
+    buildProfileNode egs (nodeIdx, dom) =
+      let domSize = length dom
+          profMap = computeNodeProfiles nodeIdx domSize egs
+          profList = SortedMap.toList profMap
+          idxs : List Nat = case length profList of Z => []; S k => [0 .. k]
+          numbered = zip idxs profList
+          profs = map (\(pidx, (_, _)) => (pidx, the Profile empty)) numbered
+      in MkProfileNode nodeIdx profs domSize
+
+    buildEdgeList : Nat -> List CSPEdgeGroups -> List (Nat, Nat, Nat)
+    buildEdgeList _ [] = []
+    buildEdgeList idx (eg :: rest) = (edgeI eg, edgeJ eg, idx) :: buildEdgeList (S idx) rest
+
+||| Get the number of profiles per node.
+export
+profileCounts : ReducedCSP -> List (Nat, Nat)
+profileCounts rcsp = map (\pn => (pnNodeIdx pn, length (pnProfiles pn))) (rcNodes rcsp)
+
+||| Dump CSP data in a machine-readable text format for external processing.
+||| Format:
+|||   NODES <count>
+|||   NODE <idx> <domSize>
+|||   EDGE <i> <j>
+|||   GI <canonicalKey> <idx1> <idx2> ...
+|||   GJ <canonicalKey> <idx1> <idx2> ...
+export
+dumpCSP : CSPData -> String
+dumpCSP cspData =
+  let nodes = cspNodes cspData
+      nodeLines = concatMap dumpNode nodes
+      edgeLines = concatMap dumpEdge (cspEdgeGroups cspData)
+  in "NODES " ++ show (length nodes) ++ "\n"
+  ++ nodeLines ++ edgeLines
+  where
+    dumpNode : (Nat, List String) -> String
+    dumpNode (idx, dom) = "NODE " ++ show idx ++ " " ++ show (length dom) ++ "\n"
+
+    dumpGroups : String -> CanonGroups -> String
+    dumpGroups pfx groups =
+      concatMap (\(key, ids) =>
+        pfx ++ " " ++ key ++ " " ++ fastConcat (intersperse " " (map show ids)) ++ "\n"
+      ) (SortedMap.toList groups)
+
+    dumpEdge : CSPEdgeGroups -> String
+    dumpEdge eg =
+      "EDGE " ++ show (edgeI eg) ++ " " ++ show (edgeJ eg) ++ "\n"
+      ++ dumpGroups "GI" (groupsI eg)
+      ++ dumpGroups "GJ" (groupsJ eg)

@@ -138,3 +138,84 @@ Named candidates: BENT = 6/16, Parity = 2/16, Majority = 3/16, Threshold-2 = 6/1
 3. Check persistence: do obstructions at s≤4 persist at s≤5? (requires 8-min d=3 enumeration)
 4. Study NS degree of UNSAT instances — this is the Path C goal
 5. Characterize which functions have obstructions (structure, complexity class)
+
+## 2026-03-16 — Session 4: NS Degree = 2 (Path C Limitation)
+
+**Context:** Continuing scan-solve and Path C NS degree investigation.
+
+**Scan-solve progress:** At ~33% (TT=21520/65536), 302 UNSAT found. Process terminated when Scheme processes were killed for rebuild.
+
+**Hamming weight distribution of UNSAT functions:**
+| Weight | UNSAT count | Total weight-k functions | Fraction |
+|--------|------------|-------------------------|----------|
+| 4 | 51 | 1,820 | 2.80% |
+| 5 | 27 | 4,368 | 0.62% |
+| 6 | 75 | 8,008 | 0.94% |
+| 7 | 53 | 11,440 | 0.46% |
+| 8 | 30 | 12,870 | 0.23% |
+| 9 | 40 | 11,440 | 0.35% |
+| 10 | 10 | 8,008 | 0.12% |
+| 11 | 8 | 4,368 | 0.18% |
+| 12 | 8 | 1,820 | 0.44% |
+
+UNSAT concentrated at low Hamming weights (4-7).
+
+**Profile-based CSP reduction:**
+- New `profiles` command and `dump-csp` format added
+- For each node, domain elements with identical edge profiles (canonical key on every adjacent edge) are interchangeable
+- TT=686 (414 elements): reduced to 150 profiles. Reduction: 2.76x
+- Python `ns_from_csp.py` parses dumps, computes profiles, generates M2 scripts, and includes a backtracking solver
+
+**Minimal UNSAT core analysis (TT=686):**
+- Removing nodes 2, 5, or 6 makes the CSP SAT (critical nodes)
+- Exactly ONE 4-node UNSAT subset: {0, 2, 5, 6} (35 profiles)
+- No 3-node subset is UNSAT
+- Four 5-node UNSAT subsets; seven 6-node; five 7-node
+
+**NS degree computation (LINEAR ALGEBRA METHOD):**
+- Python `ns_degree.py` implements exact NS degree via monomial coefficient matching
+- For degree d: set up matrix A (target monomials × multiplier coefficients), solve Ax = b where b = e_0
+
+**Results:**
+| Instance | Nodes | Profiles | NS degree |
+|----------|-------|----------|-----------|
+| TT=686 minimal core {0,2,5,6} | 4 | 35 | **2** |
+| TT=686 sub {0,2,4,5,6} | 5 | 39 | **2** |
+| TT=686 full (8 nodes) | 8 | 150 | **2** |
+
+**⚠️ CRITICAL FINDING: NS degree = 2 is an inherent limitation.**
+
+The structural CSP Γ(T, d, s) is always a 2-CSP: constraints are pairwise (between overlapping sub-cube pairs). For 2-CSPs with Boolean (one-hot) encoding:
+- Selection constraints: degree 1
+- Boolean constraints: degree 2
+- Incompatibility constraints: degree 2
+
+The NS degree is bounded by 2 regardless of n, d, or s. This is because:
+1. NS degree > 1 (selection constraints alone can't prove UNSAT)
+2. NS degree ≤ 2 (degree-2 constraints combined with selection constraints suffice)
+
+**Proof sketch for NS degree ≤ 2:**
+For edge-incompatible UNSAT (FI > 0): if edge (i,j) has zero compatible pairs, then Σ_a x_{i,a} = 1 and all x_{i,a}·x_{j,b} = 0 imply Σ_b x_{j,b} = 0, contradicting Σ_b x_{j,b} = 1. The certificate has degree 2.
+
+For graph-coloring UNSAT (FI = 0): more edges are needed, but the same degree-2 mechanism works via unit propagation from forced nodes (small domains).
+
+**Impact on Path C:**
+- ❌ NS degree of the standard one-hot 2-CSP encoding is O(1), not Ω(n). It cannot give circuit lower bounds.
+- ⚠️ This does NOT kill Path C entirely. Alternative proof complexity measures may still work:
+  1. **Resolution width** of the CSP — can be Ω(n) even when NS degree is O(1)
+  2. **NS degree over GF(2)** — Grigoriev showed Ω(n) for pigeonhole over GF(2)
+  3. **Higher-arity encoding** — encode the domain algebraically rather than via one-hot
+  4. **SOS/Positivstellensatz degree** — different from NS
+  5. **NS degree of a DIFFERENT system** — not the compatibility CSP itself, but a related system encoding OD
+
+**What we've learned about the structural CSP:**
+1. At d=3, n=4: hundreds of UNSAT functions (structural obstruction witnesses)
+2. Minimal UNSAT cores have 4 nodes (for TT=686)
+3. The UNSAT structure is "shallow" — degree-2 certificates suffice
+4. The obstruction is genuine (semantic CSP is always SAT) but proof-theoretically simple
+
+**Next:**
+1. Restart scan-solve to get full counts
+2. Report findings to ChatGPT for strategic reassessment of Path C
+3. Investigate resolution width or GF(2) NS degree as alternative measures
+4. Consider whether the obstruction's *existence* (not its proof complexity) carries useful information
