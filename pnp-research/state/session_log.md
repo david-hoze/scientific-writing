@@ -264,3 +264,80 @@ For graph-coloring UNSAT (FI = 0): more edges are needed, but the same degree-2 
 2. Test obstruction persistence at s≤5
 3. Investigate resolution width via CDCL proof logging
 4. Commit and push updates
+
+## 2026-03-16 — Session 6: Verification Types + Resolution Width Analysis
+
+**Context:** Continuing from Session 5. Two parallel tracks: (1) Idris2 verified types, (2) Path C resolution width.
+
+### Idris2 Verification Types (Complete)
+
+Four new modules in `src/Verified/` providing dependent-type safety:
+
+1. **`Verified.Formula`** — `VFormula d` with `Fin d` indices. Total evaluation, no OOB fallback. Includes `evalPreserved` proof: `veval f xs = eval (toRaw f) xs`. Zero `believe_me`.
+
+2. **`Verified.SubCube`** — `VSubCube n d` with `Vect d (Fin n)` free coords. Erased `So` proofs for distinctness/disjointness.
+
+3. **`Verified.CSP`** — `VCanonGroups domSize` with partition proof. `VEdge` with bounded node refs. `VCSPEdge` with dependent domain sizes.
+
+4. **`Verified.Solver`** — `SATWitness` (assignment + AllSatisfied proof), `UNSATCert` (only TrivialUnsat with empty-domain proof), `VInconclusive` (honest label for fuel-bounded UNSAT). Uses `DecEq String` from stdlib — no escape hatches.
+
+**Verification:** `verifiedSolve` on TT=686 returns `VSAT (verified witness)`, matching unverified solver. All four modules compile clean with `%default total` (Formula, SubCube, CSP) or `%default covering` (Solver, which calls non-total `solveCSP`).
+
+### Resolution Width Analysis (Negative Result)
+
+**Tools built:**
+- `scripts/resolution_width.py` — CNF export, DIMACS writer, DPLL solver, iterative widening resolution width
+- `scripts/cdcl_width.py` — CDCL solver with 1-UIP conflict analysis, proof width tracking (learned + intermediate)
+- `scripts/width_scaling.py` — systematic sub-CSP extraction and width measurement
+
+**CNF encoding:** Direct (one-hot) encoding of profile-reduced CSP:
+- At-least-one clauses: width = number of profiles per node (up to 70)
+- At-most-one clauses: width 2 (binary)
+- Incompatibility clauses: width 2 (binary)
+
+**Results on TT=686:**
+
+| Instance | Nodes | Vars | Clauses | Result | Decisions | Conflicts | Max Learned Width | Max Intermediate Width | Max Initial Width |
+|---|---|---|---|---|---|---|---|---|---|
+| Full (8 nodes) | 8 | 150 | 6881 | UNSAT | 0 | 0 | 1 | 0 | 70 |
+| Core {0,2,5,6} | 4 | 35 | 510 | UNSAT | 21 | 7 | 16 | 17 | 17 |
+| No forced nodes | 7 | 149 | 6830 | **SAT** | 54 | 2 | — | — | 70 |
+| No small nodes | 6 | 138 | 6196 | **SAT** | 26 | 0 | — | — | 70 |
+
+**Systematic sub-instance analysis (all C(8,k) subsets):**
+- 4-node UNSAT: 1 instance ({0,2,5,6}), max width 16
+- 5-node UNSAT: 4 instances, max width 1 or 16
+- 6-node UNSAT: 7 instances, max width 1 or 16
+- Width is **bimodal**: either 1 (unit propagation, when node 1 present) or 16 (search needed)
+
+**⚠️ KEY FINDING: Resolution width = max initial clause width.**
+
+The CDCL proof width (max intermediate resolvent = 17) equals the max at-least-one clause width (17 for the core). The Ben-Sasson–Wigderson tradeoff gives:
+
+> size ≥ 2^((res_width - max_initial_width)² / n) = 2^((17-17)²/35) = 2^0 = 1
+
+**This is a trivial bound.** Resolution width does not exceed initial clause width for the structural CSP's direct encoding.
+
+**Why this happens:**
+1. The structural CSP is a 2-CSP (pairwise constraints) — all constraint clauses are binary (width 2)
+2. The only wide clauses are at-least-one (cardinality) constraints
+3. CDCL's conflict analysis resolves binary constraint clauses with cardinality clauses, producing resolvents bounded by the cardinality clause width
+4. No "amplification" of proof width occurs
+
+**Implications for Path C:**
+- ❌ Resolution width of the direct encoding is bounded by max(profiles per node), which is O(|domain|)
+- ❌ Combined with NS degree = 2, both standard proof complexity measures are bounded for the structural CSP's one-hot encoding
+- ⚠️ Alternative encodings (log encoding, order encoding) could change the picture — different CNF encodings of the same CSP have different proof complexities
+- ⚠️ The max profile count could still grow with n (more edges → finer profiles), but this growth is bounded by domain size (= formulas of size ≤ s on d inputs), which is independent of n
+
+**Second negative result for Path C.** Both NS degree (= 2) and resolution width (= max initial clause width) are bounded by the 2-CSP structure. The direct encoding's proof complexity is shallow.
+
+### Scan-solve status
+- Background scan-solve at d=3, s≤4 still running (stuck at 121/256 functions, 1 UNSAT)
+- Likely blocked on a large instance
+
+**Next:**
+1. Update roadmap with resolution width negative result
+2. Consider alternative CNF encodings (log/order) or entirely different proof complexity approaches
+3. Commit scripts and findings
+4. Complete scan-solve (may need restart)

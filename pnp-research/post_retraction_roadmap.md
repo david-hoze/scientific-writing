@@ -100,7 +100,7 @@ Any connection between the structural characterization and the circuit complexit
 │                     │  │ Is satisfiability of │  │ CSP                 │
 │ ⚠️ 5 obstacles;     │  │ the compatibility    │  │                     │
 │ extractor/          │  │ CSP hard to detect?  │  │ NS degree = 2 (dead)│
-│ distinguisher       │  │                      │  │ Resolution width?   │
+│ distinguisher       │  │                      │  │ Res width bounded   │
 │ tension likely      │  │ Paper submitted;     │  │                     │
 │ blocks this path    │  │ open problems stated │  │ ⚠ NS bounded by    │
 │                     │  │                      │  │ 2-CSP structure     │
@@ -209,17 +209,19 @@ A degree-2 NS certificate always exists for UNSAT 2-CSPs. This is field-independ
 
 ### Remaining proof complexity directions
 
-1. **Resolution width**: Can be Ω(n) even when NS degree is O(1). Ben-Sasson & Wigderson (1999) showed resolution width ≥ expansion × n for random k-CSP. The structural CSP has an expanding constraint graph (sub-cube geometry), making this the most promising direction.
+1. ~~**Resolution width (direct encoding)**~~: **TESTED — BOUNDED.** Resolution width of the one-hot CNF encoding equals the max initial clause width (= max profiles per node). For TT=686 core: width 17 = max at-least-one clause width. Ben-Sasson–Wigderson tradeoff gives trivial size bound. The 2-CSP binary constraint structure means CDCL conflict analysis never produces wider-than-input resolvents.
 
-2. **Higher-arity encoding**: Replace one-hot with algebraic encoding of the domain. This changes the polynomial system structure — constraints become higher-degree, and NS degree may grow.
+2. **Alternative CNF encodings**: Log encoding (⌈log₂ d⌉ vars per node) or order encoding may have different resolution width behavior. The constraint clauses become wider in these encodings, potentially enabling width amplification. **Not yet tested.**
 
-3. **Lift from CSP to circuit problem**: The proof complexity of Γ(T,d,s) at dimension d might relate to circuit depth/size via a lifting theorem (Göös et al.). The CSP's resolution width at dimension d could lift to communication complexity or circuit depth lower bounds.
+3. **Higher-arity encoding**: Replace one-hot with algebraic encoding of the domain. This changes the polynomial system structure — constraints become higher-degree, and NS degree may grow.
 
-4. **Different polynomial system**: Instead of encoding the CSP, encode OD directly as a polynomial system and measure its proof complexity.
+4. **Lift from CSP to circuit problem**: The proof complexity of Γ(T,d,s) at dimension d might relate to circuit depth/size via a lifting theorem (Göös et al.). However, the CSP's shallow proof complexity (NS=2, res width = initial width) may make lifting theorems inapplicable.
 
-5. **Obstruction counting**: The *existence* and *density* of obstructions (not their proof complexity) may be the relevant quantity. 302/65536 ≈ 0.46% of n=4 functions are UNSAT at d=3, s≤4. How does this fraction scale with n?
+5. **Different polynomial system**: Instead of encoding the CSP, encode OD directly as a polynomial system and measure its proof complexity.
 
-**Recommended action:** MEDIUM priority (downgraded from HIGH). The NS approach is conclusively bounded. Resolution width is the next measure to test, but requires SAT solver integration (CDCL proof logging) rather than polynomial algebra. The obstruction characterization (50/50 split, weight-8 threshold) is independently interesting and should be documented.
+6. **Obstruction counting**: The *existence* and *density* of obstructions (not their proof complexity) may be the relevant quantity. 302/65536 ≈ 0.46% of n=4 functions are UNSAT at d=3, s≤4. How does this fraction scale with n?
+
+**Recommended action:** LOW priority (downgraded from MEDIUM). Both NS degree and resolution width (direct encoding) are conclusively bounded by the 2-CSP structure. Alternative encodings remain untested but are speculative. The obstruction characterization (50/50 split, weight-8 threshold) is independently interesting and should be documented. Path C's most promising remaining angle is obstruction counting/density, not proof complexity.
 
 ---
 
@@ -260,6 +262,9 @@ Track D (k = 3 decoupling → SAT_R ∉ AC⁰) and Track E (communication comple
 - ✅ Minimal UNSAT core for TT=686: exactly one 4-node subset {0,2,5,6}
 - ✅ **NS degree = 2 over both Q and GF(2)** — definitive negative for standard encoding
 - ✅ NS degree bounded by 2 explained: inherent to 2-CSP structure (pairwise constraints)
+- ✅ **Resolution width (direct encoding) = max initial clause width** — CDCL proof logging, width scaling analysis
+- ✅ Ben-Sasson–Wigderson tradeoff gives trivial bounds for the one-hot encoding
+- ✅ Idris2 verification types: four modules (Formula, SubCube, CSP, Solver) with zero `believe_me`
 
 ### Immediate (Months 0–2)
 
@@ -292,7 +297,7 @@ Track D (k = 3 decoupling → SAT_R ∉ AC⁰) and Track E (communication comple
 | Milestone | Window | If Yes | If No |
 |---|---|---|---|
 | Paper accepted? | Months 2–6 | Priority established | Revise and resubmit |
-| Resolution width grows with n? | Months 1–4 | Strong Path C via proof complexity lifting | Resolution width also bounded; Path C likely dead |
+| Resolution width grows with n? | ~~Months 1–4~~ **RESOLVED** | ~~Strong Path C~~ | **Bounded:** res width = max initial clause width for direct encoding. Path C proof complexity directions exhausted for standard encodings. |
 | Obstruction density grows with n? | Months 2–6 | Obstruction counting paper; density argument | Obstructions are small-n artifact; reassess |
 | Compression bound provable? | Months 3–8 | Unconditional σ∞(d) → ∞ theorem | Remains conditional |
 | σ∞(5) continues growth? | Months 4–8 | Fourth data point; publish | Investigate saturation |
@@ -339,6 +344,6 @@ Track D (k = 3 decoupling → SAT_R ∉ AC⁰) and Track E (communication comple
 
 The program has completed its transition from "P ≠ NP proof attempt" to "structural theory of circuit restriction spaces" and has begun experimental proof complexity work (Path C). The unified paper documents the first quantitative characterization of how Boolean formula DAG topologies behave under restriction, discovers a scaling law grounded in Savický's classical anti-concentration theorem, and frames precise open problems for the community.
 
-Path C experiments have established a **definitive negative result**: NS degree of the structural CSP Γ(T,d,s) is always 2 over both Q and GF(2), due to the inherent 2-CSP (pairwise constraint) structure. This kills the direct Nullstellensatz approach. However, the computational campaign discovered 302 structural obstruction witnesses at n=4, d=3, with a sharp 50/50 split between graph-coloring UNSAT and edge-incompatible UNSAT, and a surprising Hamming weight threshold at weight 8. Resolution width is the next proof complexity measure to investigate.
+Path C experiments have established **two definitive negative results**: (1) NS degree of the structural CSP Γ(T,d,s) is always 2 over both Q and GF(2), due to the inherent 2-CSP structure; (2) resolution width of the direct (one-hot) CNF encoding equals the max initial clause width, giving trivial Ben-Sasson–Wigderson bounds. Both standard proof complexity measures are shallow for the structural CSP. However, the computational campaign discovered 302 structural obstruction witnesses at n=4, d=3, with a sharp 50/50 split between graph-coloring UNSAT and edge-incompatible UNSAT, and a surprising Hamming weight threshold at weight 8. Obstruction counting/density is the most promising remaining Path C direction.
 
-The most actionable next steps are: (1) submit the paper, (2) complete the n=4 d=3 scan-solve and characterization, (3) test resolution width via CDCL proof logging, (4) pursue the compression bound.
+The most actionable next steps are: (1) submit the paper, (2) complete the n=4 d=3 scan-solve and characterization, (3) test obstruction persistence at s≤5, (4) pursue the compression bound.

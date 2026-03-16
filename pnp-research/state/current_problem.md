@@ -1,46 +1,49 @@
-# Current Problem: Path C Proof Complexity — Beyond NS Degree
+# Current Problem: Path C — Standard Proof Complexity Exhausted
 
 ## Context
 
-We've completed the first phase of Path C: computed NS degree for structural CSP obstruction witnesses at n=4, d=3. The result is decisive but negative for the direct NS approach.
+Path C has been fully investigated for the two standard proof complexity measures. Both yield negative results.
 
-## Key Finding
+## Key Findings
 
-**NS degree of the structural CSP is always 2**, regardless of the function or sub-instance. This is an inherent property of the 2-CSP structure:
-- Constraints are pairwise (between overlapping sub-cubes)
-- One-hot encoding gives degree-2 incompatibility constraints
-- Combined with degree-1 selection constraints → NS degree = 2
+### Negative Result 1: NS degree = 2 (Session 4)
 
-This means NS degree of the standard encoding **cannot grow with n** and thus cannot yield circuit lower bounds.
+**NS degree of the structural CSP is always 2**, regardless of the function, field (Q or GF(2)), or sub-instance. This is inherent to the 2-CSP structure: one-hot encoding gives degree-2 constraints, and the certificate always exists at degree 2.
 
-## What We've Established
+### Negative Result 2: Resolution width = max initial clause width (Session 6)
 
-1. **Hundreds of UNSAT structural CSPs at d=3, s≤4** — genuine obstruction witnesses
-2. **Two classes**: edge-incompatible (FI>0, trivial UNSAT) and graph-coloring (FI=0, non-trivial)
-3. **Minimal UNSAT cores have 4 nodes** (for TT=686: {0,2,5,6})
-4. **Profile reduction** cuts variables from ~8K to ~150 (2.8x typical compression)
-5. **NS degree = 2 for all tested instances** — the proof is always "shallow"
+**Resolution width of the one-hot CNF encoding equals the max at-least-one clause width.** For TT=686 core (35 vars): proof width 17 = max initial clause width 17. The Ben-Sasson–Wigderson tradeoff gives: size ≥ 2^((17-17)²/35) = 1. Trivially bounded.
 
-## The Question
+**Why:** The 2-CSP structure means all constraint clauses are binary (width 2). CDCL conflict analysis resolves these binary clauses with at-least-one (cardinality) clauses. The intermediate resolvents never exceed the cardinality clause width. No "amplification" occurs.
 
-The structural CSP Γ(T, d, s) is genuinely UNSAT for many functions, confirming that OD(T) = 1 (these functions have non-trivial cohomology). But the *proof complexity* of this UNSAT is low (NS degree 2). For circuit lower bounds, we need a proof complexity measure that grows with n.
+**Additional finding:** Node 2 (domain size 1) is essential — ALL UNSAT subsets of TT=686 contain it. Without the forced node, everything is SAT. Width is bimodal: 1 (unit prop, with enough propagation paths) or 16 (search needed, in sparse subgraphs).
 
-## Possible Directions
+## What's Exhausted
 
-1. **Resolution width**: Can be Ω(n) even for 2-CSPs with NS degree 2. Does the structural CSP's resolution width grow?
-2. **NS degree over GF(2)**: Grigoriev showed Ω(n) for pigeonhole over GF(2). The structural CSP might have high GF(2)-NS degree.
-3. **Higher-arity encoding**: Replace one-hot with algebraic encoding of the domain. This changes the degree of constraints and could increase NS degree.
-4. **Different polynomial system**: Instead of encoding the CSP directly, encode the OD function or a related function as a polynomial system, and measure its proof complexity.
-5. **Shift focus**: The *existence* of obstructions (not their proof complexity) may be what matters. Focus on counting/characterizing UNSAT functions and relating this to circuit complexity.
-6. **Lifting from sub-cube CSP to circuit problem**: The proof complexity of the CSP at dimension d might relate to circuit depth or size lower bounds through a lifting theorem.
+- ❌ NS degree over Q: always 2
+- ❌ NS degree over GF(2): always 2
+- ❌ Resolution width (direct/one-hot encoding): equals max initial clause width
 
-## What We Need from ChatGPT
+## Remaining Directions (Low Confidence)
 
-Strategic reassessment of Path C given the NS degree = 2 finding. Which alternative proof complexity measure is most promising? Should we pivot to resolution width, GF(2) NS degree, or a different encoding?
+1. **Alternative CNF encodings** (log, order): Different encodings change clause structure, potentially enabling width amplification. Not yet tested, but speculative.
+2. **Higher-arity polynomial encoding**: Changes degree structure of polynomial system.
+3. **Lifting theorems**: CSP → circuit complexity, but shallow proof complexity makes this unlikely to work.
+4. **Obstruction counting/density**: How does the fraction of UNSAT functions scale with n? This is *not* proof complexity but could still connect to circuit complexity.
+5. **Different polynomial system**: Encode OD directly rather than the CSP.
+
+## Recommended Priority
+
+Path C proof complexity: **LOW** (downgraded from MEDIUM). Standard measures are exhausted. The most productive remaining work is:
+- Complete the scan-solve for full UNSAT census at n=4
+- Test obstruction persistence at s≤5
+- Characterize the obstruction landscape (density vs n)
+- Focus on Path B (paper submission) and the compression bound
 
 ## Computational State
 
-- scan-solve: ~33% complete (302 UNSAT found of ~900 eligible at that point). Needs restart.
-- Profile computation: works for domains ≤ ~5K elements (30s per function)
+- Scan-solve: running (stuck at 121/256), 1 UNSAT found (this restart). Previous incomplete scan found 302/65536.
+- Resolution width tools: `cdcl_width.py`, `resolution_width.py`, `width_scaling.py` operational
+- Profile computation: works for domains ≤ ~5K elements
 - NS degree: works via linear algebra for ≤ ~200 profile variables
-- M2: confirmed 1 ∈ I for 39-variable sub-instance in < 1 second
+- Idris2 verified solver: operational, zero `believe_me`
