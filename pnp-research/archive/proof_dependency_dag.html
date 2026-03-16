@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P ≠ NP Proof — Dependency DAG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .header {
+    text-align: center;
+    padding: 48px 24px 32px;
+    border-bottom: 1px solid #21262d;
+  }
+  .header h1 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 300;
+    font-size: 32px;
+    color: #f0f6fc;
+    letter-spacing: 0.04em;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: #8b949e;
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    padding: 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .legend-dot.proved { background: #3fb950; }
+  .legend-dot.conditional { background: #d29922; }
+  .legend-dot.open { background: #f85149; }
+  .legend-dot.target { background: #bc8cff; }
+
+  svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+  }
+
+  .node-group { cursor: pointer; }
+  .node-group:hover .node-box { filter: brightness(1.3); }
+  .node-group:hover .node-label { fill: #f0f6fc; }
+
+  .node-box {
+    rx: 6;
+    ry: 6;
+    transition: filter 0.2s;
+  }
+  .node-box.proved { fill: #0d2818; stroke: #3fb950; stroke-width: 1.5; }
+  .node-box.conditional { fill: #2a1d04; stroke: #d29922; stroke-width: 1.5; }
+  .node-box.open { fill: #2a0e0e; stroke: #f85149; stroke-width: 1.5; }
+  .node-box.target { fill: #1a0e2e; stroke: #bc8cff; stroke-width: 2; }
+
+  .node-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    fill: #c9d1d9;
+    text-anchor: middle;
+    dominant-baseline: central;
+    transition: fill 0.2s;
+  }
+  .node-label.small { font-size: 9.5px; }
+
+  .node-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .node-status.proved { fill: #3fb950; }
+  .node-status.conditional { fill: #d29922; }
+  .node-status.open { fill: #f85149; }
+  .node-status.target { fill: #bc8cff; }
+
+  .edge {
+    stroke: #30363d;
+    stroke-width: 1.2;
+    fill: none;
+    marker-end: url(#arrow);
+  }
+  .edge.critical {
+    stroke: #bc8cff;
+    stroke-width: 1.8;
+    stroke-dasharray: 6 3;
+  }
+  .edge.conditional-edge {
+    stroke: #d29922;
+    stroke-width: 1.2;
+    stroke-dasharray: 4 2;
+  }
+
+  .tooltip {
+    position: fixed;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #c9d1d9;
+    max-width: 340px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .tt-title {
+    font-weight: 500;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .tooltip .tt-ref {
+    color: #8b949e;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  .bottleneck-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    fill: #f85149;
+    text-anchor: middle;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+  }
+
+  .phase-label {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 14px;
+    fill: #484f58;
+    font-style: italic;
+    letter-spacing: 0.03em;
+  }
+
+  .phase-line {
+    stroke: #21262d;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>P ≠ NP — Proof Dependency DAG</h1>
+  <div class="subtitle">Conditional vs. unconditional status of each component · March 2026</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot proved"></div> Proved unconditionally</div>
+  <div class="legend-item"><div class="legend-dot conditional"></div> Conditional / plausible</div>
+  <div class="legend-item"><div class="legend-dot open"></div> Open</div>
+  <div class="legend-item"><div class="legend-dot target"></div> Ultimate target</div>
+</div>
+
+<svg viewBox="0 0 960 920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#484f58"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#bc8cff"/>
+    </marker>
+    <marker id="arrow-yellow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#d29922"/>
+    </marker>
+  </defs>
+
+  <!-- Phase labels -->
+  <text class="phase-label" x="24" y="60">Part I — Framework</text>
+  <line class="phase-line" x1="20" y1="130" x2="940" y2="130"/>
+
+  <text class="phase-label" x="24" y="155">Part II — Structural Results</text>
+  <line class="phase-line" x1="20" y1="290" x2="940" y2="290"/>
+
+  <text class="phase-label" x="24" y="315">Part III — Lower Bounds</text>
+  <line class="phase-line" x1="20" y1="540" x2="940" y2="540"/>
+
+  <text class="phase-label" x="24" y="565">Part IV — Conditional Magnification</text>
+  <line class="phase-line" x1="20" y1="720" x2="940" y2="720"/>
+
+  <text class="phase-label" x="24" y="745">Part V — Barrier Evasion</text>
+
+  <!-- ═══════════ PART I NODES ═══════════ -->
+
+  <!-- Site -->
+  <g class="node-group" data-title="Sub-cube Site" data-status="Proved" data-ref="Prop 1.2" data-desc="The d-sub-cube site on {0,1}^n with Grothendieck topology is well-defined.">
+    <rect class="node-box proved" x="100" y="75" width="140" height="40"/>
+    <text class="node-label" x="170" y="90">Sub-cube Site</text>
+    <text class="node-status proved" x="170" y="105">✅ Proved</text>
+  </g>
+
+  <!-- CSP Dichotomy -->
+  <g class="node-group" data-title="CSP Dichotomy Recovery" data-status="Proved" data-ref="Thm 3.2" data-desc="Polynomial descent ↔ WNU polymorphism. Verified for 2-SAT (majority), XOR-SAT (Mal'tsev), 3-SAT (failure).">
+    <rect class="node-box proved" x="310" y="75" width="170" height="40"/>
+    <text class="node-label" x="395" y="90">CSP Dichotomy</text>
+    <text class="node-status proved" x="395" y="105">✅ Proved</text>
+  </g>
+
+  <!-- MCSP Presheaf -->
+  <g class="node-group" data-title="MCSP Presheaf Well-Defined" data-status="Proved" data-ref="Thm 2.3" data-desc="F^{cir} and F^{grp} are well-defined presheaves. Global sections = small circuits for truth table T.">
+    <rect class="node-box proved" x="550" y="75" width="170" height="40"/>
+    <text class="node-label" x="635" y="90">MCSP Presheaf</text>
+    <text class="node-status proved" x="635" y="105">✅ Proved</text>
+  </g>
+
+  <!-- Magnification -->
+  <g class="node-group" data-title="Hardness Magnification" data-status="Proved" data-ref="Thm 5.2, Cor 5.4" data-desc="Oliveira–Santhanam: OD ∉ SIZE[N^{1+ε}] → NP ⊄ P/poly → P ≠ NP. Prior work; used as black box.">
+    <rect class="node-box proved" x="770" y="75" width="150" height="40"/>
+    <text class="node-label" x="845" y="90">Magnification</text>
+    <text class="node-status proved" x="845" y="105">✅ [OS18, CHOPRS22]</text>
+  </g>
+
+  <!-- ═══════════ PART II NODES ═══════════ -->
+
+  <!-- Result A -->
+  <g class="node-group" data-title="Result A: No Circuit Polymorphism" data-status="Proved" data-ref="Thm 6.2" data-desc="No nontrivial poly-time algorithm merges compatible local circuits into a global small circuit for hard truth tables. Shannon counting + Håstad.">
+    <rect class="node-box proved" x="80" y="185" width="220" height="40"/>
+    <text class="node-label" x="190" y="200">A: No Polymorphism</text>
+    <text class="node-status proved" x="190" y="215">✅ Proved</text>
+  </g>
+
+  <!-- Result B Parity -->
+  <g class="node-group" data-title="Result B (Parity): Compatible Families" data-status="Proved" data-ref="Thm 7.1" data-desc="Canonical balanced XOR trees form a compatible family for F^{cir}. Does not extend globally by Håstad. H¹ ≠ {∗}.">
+    <rect class="node-box proved" x="350" y="165" width="240" height="40"/>
+    <text class="node-label" x="470" y="180">B (Parity): XOR Trees</text>
+    <text class="node-status proved" x="470" y="195">✅ Proved</text>
+  </g>
+
+  <!-- Result B Random -->
+  <g class="node-group" data-title="Result B (Random): Lupanov Families" data-status="Conditional" data-ref="Thm 7.3" data-desc="Compatible families for random functions via Lupanov. CONDITIONAL: address/data partition changes non-uniformly under restriction. The DAG isomorphism between restricted and direct Lupanov circuits is not exhibited.">
+    <rect class="node-box conditional" x="350" y="225" width="240" height="40"/>
+    <text class="node-label small" x="470" y="238">B (Random): Lupanov</text>
+    <text class="node-status conditional" x="470" y="253">⚠️ Functoriality gap</text>
+  </g>
+
+  <!-- Result C -->
+  <g class="node-group" data-title="Result C: Non-Locality" data-status="Proved" data-ref="Thms 8.1–8.2" data-desc="Mergeability obstruction depends on Ω(N/log N) independent sub-cube interactions, invisible to bounded-fan-in oracle gates.">
+    <rect class="node-box proved" x="660" y="185" width="220" height="40"/>
+    <text class="node-label" x="770" y="200">C: Non-Locality</text>
+    <text class="node-status proved" x="770" y="215">✅ Proved</text>
+  </g>
+
+  <!-- ═══════════ PART III NODES ═══════════ -->
+
+  <!-- Residual Forks -->
+  <g class="node-group" data-title="Ω(n) Independent Forks" data-status="Proved" data-ref="Thms 9.4, 9.6" data-desc="3-SAT residual has Ω(n) independent three-way forks with disjoint variable sets, giving Ω(n) independent cocycle conditions.">
+    <rect class="node-box proved" x="60" y="340" width="200" height="40"/>
+    <text class="node-label" x="160" y="355">Ω(n) Forks / Cocycles</text>
+    <text class="node-status proved" x="160" y="370">✅ Proved</text>
+  </g>
+
+  <!-- Decoupling -->
+  <g class="node-group" data-title="Decoupling Property" data-status="Conditional" data-ref="Conj 10.3, Thm 10.4" data-desc="Distant forks approximately independent under satisfying distribution. PROVED for large k (Molloy + Ding–Sly–Sun). OPEN for k=3 (requires spatial mixing at 3-SAT threshold).">
+    <rect class="node-box conditional" x="60" y="410" width="200" height="40"/>
+    <text class="node-label" x="160" y="425">Decoupling (k=3)</text>
+    <text class="node-status conditional" x="160" y="440">⚠️ Proved for large k only</text>
+  </g>
+
+  <!-- Block Sensitivity -->
+  <g class="node-group" data-title="Block Sensitivity Ω(n)" data-status="Conditional" data-ref="Thms 10.1–10.2" data-desc="Ω(n) critically satisfied forks → bs(SAT_R) ≥ Ω(n). Requires decoupling + bounded marginals.">
+    <rect class="node-box conditional" x="60" y="480" width="200" height="40"/>
+    <text class="node-label" x="160" y="495">bs(SAT_R) ≥ Ω(n)</text>
+    <text class="node-status conditional" x="160" y="510">⚠️ Conditional</text>
+  </g>
+
+  <!-- AC0 -->
+  <g class="node-group" data-title="SAT_R ∉ AC⁰" data-status="Conditional" data-ref="Thm 11.1, Cor 11.2" data-desc="Via Huang (s ≥ √bs) + Boppana/Tal. PROVED unconditionally for large k. Conditional on decoupling for k=3.">
+    <rect class="node-box conditional" x="60" y="545" width="200" height="55"/>
+    <text class="node-label" x="160" y="563">SAT_R ∉ AC⁰</text>
+    <text class="node-status conditional" x="160" y="580">⚠️ k=3 conditional</text>
+    <text class="node-status proved" x="160" y="593" style="font-size:8px">✅ large k proved</text>
+  </g>
+
+  <!-- Sub-cube Query -->
+  <g class="node-group" data-title="Sub-cube Query Complexity" data-status="Proved" data-ref="Thm 12.1" data-desc="Q_d(OD) ≥ Ω(N/poly(n)). Each of Ω(N/log N) independent interactions requires at least one query to resolve.">
+    <rect class="node-box proved" x="380" y="370" width="200" height="40"/>
+    <text class="node-label" x="480" y="385">Q_d(OD) ≥ Ω(N/poly(n))</text>
+    <text class="node-status proved" x="480" y="400">✅ Proved</text>
+  </g>
+
+  <!-- Communication -->
+  <g class="node-group" data-title="Communication Complexity" data-status="Open" data-ref="Prop 12.2" data-desc="CC(OD) ≥ Ω(N/log N). Structural argument exists (cross-partition interactions). Formal proof requires lifting or Razborov-type analysis. Rectangle argument unjustified.">
+    <rect class="node-box open" x="380" y="440" width="200" height="40"/>
+    <text class="node-label" x="480" y="455">CC(OD) ≥ Ω(N/log N)</text>
+    <text class="node-status open" x="480" y="470">❌ Open</text>
+  </g>
+
+  <!-- Sub-cube Lifting -->
+  <g class="node-group" data-title="Sub-cube Lifting Conjecture" data-status="Open" data-ref="Conj 14.1" data-desc="∃ gadget g with sub-polynomial size: L(f∘g) ≥ Q_d(f)^{1+Ω(1)} · poly(|g|). No sub-cube lifting theorem exists. Key bottleneck.">
+    <rect class="node-box open" x="660" y="370" width="220" height="44"/>
+    <text class="node-label" x="770" y="385">Sub-cube Lifting</text>
+    <text class="node-status open" x="770" y="402">❌ BOTTLENECK</text>
+  </g>
+
+  <!-- BOTTLENECK LABELS -->
+  <text class="bottleneck-label" x="770" y="358">▼ BOTTLENECK</text>
+  <text class="bottleneck-label" x="160" y="399">▼ BOTTLENECK</text>
+
+  <!-- ═══════════ PART IV NODES ═══════════ -->
+
+  <!-- OD lower bound -->
+  <g class="node-group" data-title="OD ∉ SIZE[N^{1+ε}]" data-status="Open" data-ref="Conjecture 7.4" data-desc="The circuit lower bound for the obstruction detection function. Requires either sub-cube lifting, uniform magnification, or a new technique.">
+    <rect class="node-box open" x="460" y="580" width="220" height="44"/>
+    <text class="node-label" x="570" y="595">OD ∉ SIZE[N^{1+ε}]</text>
+    <text class="node-status open" x="570" y="612">❌ Open</text>
+  </g>
+
+  <!-- Uniform magnification -->
+  <g class="node-group" data-title="Atserias–Müller Uniform Magnification" data-status="Conditional" data-ref="Thm 16.1" data-desc="If OD satisfies distinguisher conditions, superlinear P-uniform formula bounds → P ≠ NP. Sidesteps locality barrier. Applicability to OD not yet verified.">
+    <rect class="node-box conditional" x="700" y="480" width="220" height="40"/>
+    <text class="node-label small" x="810" y="493">Uniform Magnification</text>
+    <text class="node-status conditional" x="810" y="508">⚠️ Applicability open</text>
+  </g>
+
+  <!-- NP not in P/poly -->
+  <g class="node-group" data-title="NP ⊄ P/poly" data-status="Target" data-ref="Thm 15.1 Step 5" data-desc="Follows from OD ∉ SIZE[N^{1+ε}] via Oliveira–Santhanam hardness magnification.">
+    <rect class="node-box target" x="380" y="660" width="200" height="40"/>
+    <text class="node-label" x="480" y="675">NP ⊄ P/poly</text>
+    <text class="node-status target" x="480" y="690">Via magnification</text>
+  </g>
+
+  <!-- P != NP -->
+  <g class="node-group" data-title="P ≠ NP" data-status="Target" data-ref="Thm 15.1" data-desc="CONDITIONAL: follows from Sub-cube Lifting Conjecture. The conditional chain is: lifting → OD lower bound → magnification → NP ⊄ P/poly → P ≠ NP.">
+    <rect class="node-box target" x="380" y="760" width="200" height="50"/>
+    <text class="node-label" x="480" y="778" style="font-size:15px; font-weight:500;">P ≠ NP</text>
+    <text class="node-status target" x="480" y="798">⚠️ Conditional</text>
+  </g>
+
+  <!-- ═══════════ BARRIER NODES ═══════════ -->
+
+  <g class="node-group" data-title="Natural Proofs Evasion" data-status="Conditional" data-ref="Thm 17.1" data-desc="OD property is non-large (random functions lack compatible families) and non-constructive (detecting OD ≥ co-MCSP). Plausible but unproved.">
+    <rect class="node-box conditional" x="80" y="770" width="130" height="40"/>
+    <text class="node-label small" x="145" y="785">Natural Proofs</text>
+    <text class="node-status conditional" x="145" y="800">⚠️ Plausible</text>
+  </g>
+
+  <g class="node-group" data-title="Locality Barrier Evasion" data-status="Conditional" data-ref="Thm 18.1" data-desc="OD^{grp} richer than Gap-MCSP; oracle upper bounds may not apply. Structural evidence only.">
+    <rect class="node-box conditional" x="80" y="830" width="130" height="40"/>
+    <text class="node-label small" x="145" y="845">Locality</text>
+    <text class="node-status conditional" x="145" y="860">⚠️ Evidence</text>
+  </g>
+
+  <g class="node-group" data-title="Non-Relativization" data-status="Proved" data-ref="Thm 19.1" data-desc="Oracle A computing MCSP + compatible families makes OD easy. Boolean hypercube structure destroyed by oracles.">
+    <rect class="node-box proved" x="230" y="830" width="130" height="40"/>
+    <text class="node-label small" x="295" y="845">Relativization</text>
+    <text class="node-status proved" x="295" y="860">✅ Proved</text>
+  </g>
+
+  <g class="node-group" data-title="Non-Algebrization" data-status="Proved" data-ref="Thm 20.1" data-desc="DAG isomorphism is combinatorial, changes under algebraic extension. Cocycle variety structure differs over GF(2) vs algebraically closed fields.">
+    <rect class="node-box proved" x="230" y="770" width="130" height="40"/>
+    <text class="node-label small" x="295" y="785">Algebrization</text>
+    <text class="node-status proved" x="295" y="800">✅ Proved</text>
+  </g>
+
+  <!-- ═══════════ EDGES ═══════════ -->
+
+  <!-- Part I → Part II -->
+  <line class="edge" x1="170" y1="115" x2="190" y2="185"/>
+  <line class="edge" x1="395" y1="115" x2="470" y2="165"/>
+  <line class="edge" x1="635" y1="115" x2="770" y2="185"/>
+  <line class="edge" x1="635" y1="115" x2="470" y2="165"/>
+
+  <!-- Part II → Part III -->
+  <line class="edge" x1="190" y1="225" x2="160" y2="340"/>
+  <line class="edge" x1="470" y1="205" x2="480" y2="370"/>
+  <line class="edge" x1="770" y1="225" x2="770" y2="370"/>
+  <line class="edge" x1="770" y1="225" x2="480" y2="370"/>
+
+  <!-- Part III internal -->
+  <line class="edge" x1="160" y1="380" x2="160" y2="410"/>
+  <line class="edge conditional-edge" x1="160" y1="450" x2="160" y2="480" marker-end="url(#arrow-yellow)"/>
+  <line class="edge conditional-edge" x1="160" y1="520" x2="160" y2="545" marker-end="url(#arrow-yellow)"/>
+  <line class="edge" x1="480" y1="410" x2="480" y2="440"/>
+
+  <!-- Sub-cube query → Lifting → OD bound -->
+  <line class="edge critical" x1="580" y1="390" x2="660" y2="390" marker-end="url(#arrow-purple)"/>
+  <line class="edge critical" x1="770" y1="414" x2="680" y2="580" marker-end="url(#arrow-purple)"/>
+
+  <!-- Uniform magnification → OD bound -->
+  <line class="edge conditional-edge" x1="810" y1="520" x2="680" y2="580" marker-end="url(#arrow-yellow)"/>
+
+  <!-- Communication → OD bound (weak) -->
+  <line class="edge" x1="480" y1="480" x2="500" y2="580" style="stroke:#30363d; stroke-dasharray:2 4;"/>
+
+  <!-- OD bound → NP not in P/poly -->
+  <line class="edge critical" x1="570" y1="624" x2="480" y2="660" marker-end="url(#arrow-purple)"/>
+
+  <!-- Magnification theorem feeds in -->
+  <line class="edge" x1="845" y1="115" x2="845" y2="640" style="stroke:#30363d;"/>
+  <line class="edge" x1="845" y1="640" x2="580" y2="675" style="stroke:#30363d;"/>
+
+  <!-- NP ⊄ P/poly → P ≠ NP -->
+  <line class="edge critical" x1="480" y1="700" x2="480" y2="760" marker-end="url(#arrow-purple)"/>
+
+</svg>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+  const tooltip = document.getElementById('tooltip');
+  const groups = document.querySelectorAll('.node-group');
+
+  groups.forEach(g => {
+    g.addEventListener('mouseenter', e => {
+      const title = g.dataset.title;
+      const status = g.dataset.status;
+      const ref = g.dataset.ref;
+      const desc = g.dataset.desc;
+      tooltip.innerHTML = `<div class="tt-title">${title}</div>${desc}<div class="tt-ref">${ref} · ${status}</div>`;
+      tooltip.classList.add('visible');
+    });
+    g.addEventListener('mousemove', e => {
+      const x = Math.min(e.clientX + 16, window.innerWidth - 360);
+      const y = Math.min(e.clientY + 16, window.innerHeight - 200);
+      tooltip.style.left = x + 'px';
+      tooltip.style.top = y + 'px';
+    });
+    g.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('visible');
+    });
+  });
+</script>
+
+</body>
+</html>

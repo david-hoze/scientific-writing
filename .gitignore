@@ -2,6 +2,10 @@
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 
-# If you use community plugins, you might want to ignore their data 
+# If you use community plugins, you might want to ignore their data
 # if it contains API keys or local paths
 # .obsidian/plugins/
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sheaf-Theoretic Framework for P ≠ NP — Schematic</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,300;1,8..60,400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #faf8f5;
+    font-family: 'Source Serif 4', Georgia, serif;
+    color: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1100px;
+    position: relative;
+  }
+
+  /* Title block */
+  .title-block {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #c8bfb0;
+  }
+  .title-block h1 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 300;
+    font-size: 28px;
+    letter-spacing: 0.02em;
+    color: #2c2c2c;
+    margin-bottom: 8px;
+  }
+  .title-block .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8a7e6e;
+  }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Each tier */
+  .tier {
+    display: grid;
+    grid-template-columns: 160px 1fr 200px;
+    align-items: stretch;
+    min-height: 120px;
+    position: relative;
+  }
+  .tier + .tier { margin-top: 0; }
+
+  .tier-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8a7e6e;
+    padding: 20px 16px 20px 0;
+    text-align: right;
+    border-right: 2px solid #d4cdc0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .tier-content {
+    padding: 16px 28px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .tier-annotation {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 13px;
+    font-style: italic;
+    color: #7a6e5e;
+    padding: 20px 0 20px 16px;
+    border-left: 1px solid #e0d9ce;
+    display: flex;
+    align-items: center;
+    line-height: 1.5;
+  }
+
+  /* Nodes */
+  .node {
+    background: #fff;
+    border: 1px solid #d4cdc0;
+    border-radius: 6px;
+    padding: 14px 18px;
+    position: relative;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+  }
+  .node:hover {
+    border-color: #8a7e6e;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .node-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: #4a4a4a;
+    margin-bottom: 4px;
+  }
+  .node-desc {
+    font-size: 12.5px;
+    color: #5a5a5a;
+    line-height: 1.45;
+  }
+  .node-math {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6a5a4a;
+    background: #f5f0e8;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  /* Accent variants */
+  .node.input {
+    border-left: 3px solid #7b9e87;
+    background: linear-gradient(135deg, #f8faf8, #fff);
+  }
+  .node.process {
+    border-left: 3px solid #6e8ba8;
+    background: linear-gradient(135deg, #f6f9fc, #fff);
+  }
+  .node.obstruction {
+    border-left: 3px solid #b87a5a;
+    background: linear-gradient(135deg, #fdf8f4, #fff);
+  }
+  .node.target {
+    border-left: 3px solid #9a6b8a;
+    background: linear-gradient(135deg, #faf6f9, #fff);
+  }
+  .node.result {
+    border-left: 3px solid #c75a3a;
+    background: linear-gradient(135deg, #fef6f4, #fff);
+  }
+
+  /* Connectors between tiers */
+  .connector {
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+  }
+  .connector-line {
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(to bottom, #d4cdc0, #b8ae9e);
+    position: relative;
+    margin-left: 160px;
+  }
+  .connector-line::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #b8ae9e;
+    border-bottom: 2px solid #b8ae9e;
+    transform: rotate(45deg);
+  }
+  .connector-label {
+    position: absolute;
+    left: calc(160px + 20px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: #a09080;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* Barrier sidebar */
+  .barriers {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid #c8bfb0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  .barrier-card {
+    background: #fff;
+    border: 1px solid #e0d9ce;
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .barrier-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .barrier-card.natural::before { background: #7b9e87; }
+  .barrier-card.locality::before { background: #6e8ba8; }
+  .barrier-card.relativ::before { background: #b87a5a; }
+  .barrier-card.algebr::before { background: #9a6b8a; }
+
+  .barrier-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5a5a5a;
+    margin-bottom: 6px;
+  }
+  .barrier-status {
+    font-size: 12px;
+    color: #6a6a6a;
+    line-height: 1.5;
+  }
+  .barrier-verdict {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    margin-top: 8px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .verdict-plausible {
+    background: #eef5ef;
+    color: #4a7a4a;
+  }
+  .verdict-structural {
+    background: #eef2f7;
+    color: #4a6a8a;
+  }
+  .verdict-open {
+    background: #f7f2ee;
+    color: #8a6a4a;
+  }
+
+  /* Bottom legend */
+  .legend {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e0d9ce;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-swatch {
+    width: 16px;
+    height: 3px;
+    border-radius: 1px;
+  }
+  .legend-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8a7e6e;
+  }
+
+  /* Node clusters */
+  .node-cluster {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .arrow-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #b8ae9e;
+    flex-shrink: 0;
+  }
+
+  /* Conditional banner */
+  .conditional-banner {
+    margin: 32px 0 0;
+    padding: 20px 28px;
+    background: linear-gradient(135deg, #fef6f4 0%, #fdf8f4 50%, #faf6f9 100%);
+    border: 1px dashed #c8a888;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .conditional-banner .formula {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: #4a3a2a;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+  .conditional-banner .note {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 13px;
+    font-style: italic;
+    color: #8a7060;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8a7e6e;
+    margin: 40px 0 16px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Title -->
+  <div class="title-block">
+    <h1>The Sheaf-Theoretic Route to P ≠ NP</h1>
+    <div class="subtitle">A visual schematic of the research framework</div>
+  </div>
+
+  <!-- Main flow -->
+  <div class="flow">
+
+    <!-- Tier 1: Input -->
+    <div class="tier">
+      <div class="tier-label">Input</div>
+      <div class="tier-content">
+        <div class="node-cluster">
+          <div class="node input">
+            <div class="node-title">Truth Table T</div>
+            <div class="node-desc">T ∈ {0,1}<sup>N</sup>, encoding f : {0,1}<sup>n</sup> → {0,1}</div>
+            <div class="node-math">N = 2ⁿ bits</div>
+          </div>
+          <span class="arrow-text">→</span>
+          <div class="node input">
+            <div class="node-title">Sub-cube Site</div>
+            <div class="node-desc">All sub-cubes of dimension ≤ d = O(log n)</div>
+            <div class="node-math">Site_d(T) with Θ(N · nᵈ) objects</div>
+          </div>
+        </div>
+      </div>
+      <div class="tier-annotation">Grothendieck site on {0,1}ⁿ; coverings = sub-cube families</div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">restrict f to each sub-cube</div>
+    </div>
+
+    <!-- Tier 2: Local Sections -->
+    <div class="tier">
+      <div class="tier-label">Local<br>Sections</div>
+      <div class="tier-content">
+        <div class="node-cluster">
+          <div class="node process">
+            <div class="node-title">F<sup>cir</sup>(S, α)</div>
+            <div class="node-desc">Small circuits computing f|<sub>S,α</sub></div>
+            <div class="node-math">|C| ≤ s = poly(n), one per sub-cube</div>
+          </div>
+          <span class="arrow-text">→</span>
+          <div class="node process">
+            <div class="node-title">Compatibility Check</div>
+            <div class="node-desc">Restrictions to overlaps are DAG-isomorphic</div>
+            <div class="node-math">C_i|_{U_i∩U_j} ≅ C_j|_{U_i∩U_j}</div>
+          </div>
+        </div>
+      </div>
+      <div class="tier-annotation">Every sub-cube has small circuits (Lupanov). Compatibility is the structural constraint.</div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">attempt global assembly</div>
+    </div>
+
+    <!-- Tier 3: Cohomological Obstruction -->
+    <div class="tier">
+      <div class="tier-label">Obstruction</div>
+      <div class="tier-content">
+        <div class="node-cluster">
+          <div class="node obstruction">
+            <div class="node-title">Čech Cohomology Ȟ¹</div>
+            <div class="node-desc">Compatible family exists but no global small circuit</div>
+            <div class="node-math">Ȟ¹(F<sup>cir</sup><sub>T,s</sub>) ≠ {∗}</div>
+          </div>
+          <span class="arrow-text">=</span>
+          <div class="node obstruction">
+            <div class="node-title">Mergeability Obstruction</div>
+            <div class="node-desc">Locally simple, structurally coherent, globally hard</div>
+            <div class="node-math">∃ cocycle, ¬∃ coboundary</div>
+          </div>
+        </div>
+      </div>
+      <div class="tier-annotation">Parity in AC⁰ is the concrete witness (Thm 7.1 + Håstad).</div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">define the detection problem</div>
+    </div>
+
+    <!-- Tier 4: OD Function -->
+    <div class="tier">
+      <div class="tier-label">Detection</div>
+      <div class="tier-content">
+        <div class="node target" style="flex-grow: 1; max-width: 520px;">
+          <div class="node-title">Obstruction Detection Function OD</div>
+          <div class="node-desc">OD : {0,1}<sup>N</sup> → {0,1}</div>
+          <div class="node-math" style="margin-top: 8px;">OD(T) = 1 &nbsp;⟺&nbsp; Ȟ¹(F<sup>cir</sup><sub>T,s</sub>) ≠ {∗}</div>
+          <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <span class="node-math" style="background: #f0ebe4;">Non-local: Ω(N/log N) interactions</span>
+            <span class="node-math" style="background: #f0ebe4;">No circuit polymorphism</span>
+            <span class="node-math" style="background: #f0ebe4;">Non-large, non-constructive</span>
+          </div>
+        </div>
+      </div>
+      <div class="tier-annotation">Results A, B, C establish structural plausibility of hardness.</div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">conjecture 7.4 + magnification</div>
+    </div>
+
+    <!-- Tier 5: Implication -->
+    <div class="tier">
+      <div class="tier-label">Conclusion</div>
+      <div class="tier-content">
+        <div class="node-cluster">
+          <div class="node result" style="max-width: 280px;">
+            <div class="node-title">Conjecture 7.4</div>
+            <div class="node-desc">OD ∉ SIZE[N<sup>1+ε</sup>] for any ε > 0</div>
+            <div class="node-math" style="background: #fde8e2;">STATUS: OPEN</div>
+          </div>
+          <span class="arrow-text" style="font-size: 18px;">⟹</span>
+          <div class="node result" style="max-width: 280px;">
+            <div class="node-title">Via Oliveira–Santhanam</div>
+            <div class="node-desc">NP ⊄ P/poly, hence P ≠ NP</div>
+            <div class="node-math" style="background: #fde8e2;">CONDITIONAL</div>
+          </div>
+        </div>
+      </div>
+      <div class="tier-annotation">Hardness magnification converts barely-superlinear to full separation.</div>
+    </div>
+  </div>
+
+  <!-- Conditional banner -->
+  <div class="conditional-banner">
+    <div class="formula">If OD ∉ SIZE[N<sup>1+ε</sup>] &nbsp;⟹&nbsp; NP ⊄ P/poly &nbsp;⟹&nbsp; P ≠ NP</div>
+    <div class="note">The framework establishes the conditional implication. The lower bound remains the central open problem.</div>
+  </div>
+
+  <!-- Barriers section -->
+  <div class="section-label">Barrier Analysis</div>
+  <div class="barriers">
+    <div class="barrier-card natural">
+      <div class="barrier-name">Natural Proofs</div>
+      <div class="barrier-status">OD is plausibly non-large (random functions lack compatible families) and non-constructive (detecting H¹ ≈ MCSP-hard).</div>
+      <div class="barrier-verdict verdict-plausible">Plausibly evaded</div>
+    </div>
+    <div class="barrier-card locality">
+      <div class="barrier-name">Locality Barrier</div>
+      <div class="barrier-status">H¹ depends on Ω(N/log N) independent interactions. Oracle gates see O(1) bits. Structural non-locality is necessary but not sufficient.</div>
+      <div class="barrier-verdict verdict-structural">Structural evidence</div>
+    </div>
+    <div class="barrier-card relativ">
+      <div class="barrier-name">Relativization</div>
+      <div class="barrier-status">Sub-cube site uses specific Boolean hypercube structure. Oracle A computing MCSP makes OD easy. Proof technique must not survive oracles.</div>
+      <div class="barrier-verdict verdict-open">Needs verification</div>
+    </div>
+    <div class="barrier-card algebr">
+      <div class="barrier-name">Algebrization</div>
+      <div class="barrier-status">DAG-isomorphism is combinatorial, not algebraic. Cocycle variety changes over field extensions. Chen–Hu–Ren (2025) strengthens this barrier.</div>
+      <div class="barrier-verdict verdict-open">Needs verification</div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: #7b9e87;"></div>
+      <div class="legend-text">Established (proved)</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: #6e8ba8;"></div>
+      <div class="legend-text">Framework (defined)</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: #b87a5a;"></div>
+      <div class="legend-text">Structural result</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: #9a6b8a;"></div>
+      <div class="legend-text">Conjecture target</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: #c75a3a;"></div>
+      <div class="legend-text">Open / conditional</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

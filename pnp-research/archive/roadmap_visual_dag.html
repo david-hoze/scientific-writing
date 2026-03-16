@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post-Retraction Roadmap — Viable Paths to P ≠ NP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #090d12;
+    color: #b0bcc8;
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 28px 44px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #151c28;
+    margin-bottom: 18px;
+  }
+  .header h1 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 300;
+    font-size: 24px;
+    color: #e4eaf0;
+    letter-spacing: 0.04em;
+  }
+  .header .sub {
+    font-size: 11px;
+    color: #4a5868;
+    margin-top: 5px;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── PRIORITY ── */
+  .priority {
+    background: linear-gradient(135deg, #0c1522 0%, #090f18 100%);
+    border: 1.5px solid #1e4a8a44;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+  }
+  .priority .lbl {
+    font-size: 8.5px; font-weight: 500; color: #3b82f6;
+    letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .priority .txt {
+    font-size: 11.5px; color: #b8cce0; line-height: 1.6;
+  }
+  .priority strong { color: #d8e8ff; font-weight: 500; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; justify-content: center; gap: 18px;
+    flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 9.5px; color: #4a5868;
+  }
+  .ldot { width: 9px; height: 9px; border-radius: 50%; }
+  .ldot.cond { background: #d29922; }
+  .ldot.uncond { background: #3fb950; }
+  .ldot.spec { background: #8b5cf6; }
+  .ldot.supp { background: #3a4555; border: 1.5px dashed #5a6878; }
+  .ldot.target { background: transparent; border: 1.5px solid #f85149; }
+  .ldot.dead { background: #f85149; }
+  .ldot.synergy { background: transparent; border: 1.5px solid #22d3ee; }
+
+  /* ── DAG SVG ── */
+  .dag-wrap { text-align: center; margin-bottom: 20px; overflow-x: auto; }
+  svg text { font-family: 'IBM Plex Mono', monospace; }
+
+  .nbox { rx: 5; ry: 5; }
+  .nbox.found { fill: #0b1520; stroke: #1a3555; stroke-width: 1.3; }
+  .nbox.pa { fill: #181505; stroke: #d29922; stroke-width: 1.4; }
+  .nbox.pb { fill: #0b1a0e; stroke: #3fb950; stroke-width: 1.4; }
+  .nbox.pc { fill: #130b22; stroke: #8b5cf6; stroke-width: 1.4; }
+  .nbox.trk { fill: #0e1015; stroke: #3a4555; stroke-width: 1; stroke-dasharray: 4 2; }
+  .nbox.btn { fill: #180808; stroke: #f85149; stroke-width: 1.8; }
+  .nbox.tgt { fill: #0c0e12; stroke: #555e6a; stroke-width: 1.3; stroke-dasharray: 4 2; }
+  .nbox.dead { fill: #120505; stroke: #f85149; stroke-width: 1.2; stroke-dasharray: 5 3; opacity: 0.35; }
+
+  .ntitle { font-size: 10px; fill: #c0ccd8; text-anchor: middle; dominant-baseline: central; }
+  .nsub { font-size: 8px; text-anchor: middle; dominant-baseline: central; }
+  .nsub.c { fill: #d29922; } .nsub.u { fill: #3fb950; } .nsub.s { fill: #8b5cf6; }
+  .nsub.o { fill: #f85149; } .nsub.t { fill: #6a7888; } .nsub.d { fill: #f8514955; }
+
+  .edge { fill: none; stroke-width: 1.1; }
+  .edge.sol { stroke: #1e2e40; }
+  .edge.cn { stroke: #d29922; stroke-dasharray: 4 2; }
+  .edge.un { stroke: #3fb950; stroke-dasharray: 4 2; }
+  .edge.sp { stroke: #8b5cf6; stroke-dasharray: 4 2; }
+  .edge.sup { stroke: #2a3545; stroke-dasharray: 2 4; }
+  .edge.fut { stroke: #3a4555; stroke-dasharray: 2 3; }
+  .edge.syn { stroke: #22d3ee; stroke-width: 0.8; stroke-dasharray: 3 3; opacity: 0.5; }
+
+  .expert-tag {
+    font-size: 7px; fill: #3a4a5a;
+    text-anchor: middle; dominant-baseline: central;
+    font-style: italic;
+  }
+
+  /* ── SYNERGY BOX ── */
+  .synergy-panel {
+    background: linear-gradient(135deg, #081218 0%, #060e14 100%);
+    border: 1px solid #22d3ee22;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+  .synergy-panel .sp-title {
+    font-size: 9px; font-weight: 500; color: #22d3ee;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .syn-flows {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .syn-flow {
+    background: #0a1018;
+    border: 1px solid #1a2535;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 9px;
+    line-height: 1.55;
+    color: #7a8a9a;
+  }
+  .syn-flow .sf-route {
+    font-size: 8px; font-weight: 500;
+    color: #22d3ee; margin-bottom: 4px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── TIMELINE ── */
+  .timeline { margin: 0 auto 20px; }
+  .timeline h2 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 300; font-size: 15px;
+    color: #7088a0; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 12px; text-align: center;
+  }
+  .phases { display: flex; gap: 10px; }
+  .phase {
+    flex: 1; border-radius: 6px; padding: 12px 14px;
+  }
+  .phase.p1 { background: #0c1520; border: 1px solid #1a3555aa; }
+  .phase.p2 { background: #0e180e; border: 1px solid #1a5520aa; }
+  .phase.p3 { background: #14101c; border: 1px solid #3a1a5aaa; }
+  .phase-lbl {
+    font-size: 8.5px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .phase.p1 .phase-lbl { color: #3b82f6; }
+  .phase.p2 .phase-lbl { color: #3fb950; }
+  .phase.p3 .phase-lbl { color: #8b5cf6; }
+  .phase-mo { font-size: 9.5px; color: #4a5868; margin-bottom: 6px; }
+  .phase-items { list-style: none; font-size: 9.5px; line-height: 1.65; color: #7a8a9a; }
+  .phase-items li { padding-left: 10px; position: relative; }
+  .phase-items li::before {
+    content: ''; position: absolute; left: 0; top: 7px;
+    width: 4px; height: 4px; border-radius: 50%; background: #2a3a4a;
+  }
+  .phase-items .pri::before { background: #3b82f6; }
+  .phase-items .sec::before { background: #d29922; }
+  .phase-items .ter::before { background: #8b5cf6; }
+  .phase-note {
+    font-size: 8px; color: #3a4a5a; margin-top: 6px; font-style: italic;
+  }
+
+  /* ── DIAGNOSTIC STRIP ── */
+  .diag-strip {
+    margin: 0 auto 20px;
+    background: #0a0e14;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    padding: 14px 18px;
+  }
+  .diag-strip h3 {
+    font-size: 9px; font-weight: 500; color: #3b82f6;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .diag-weeks {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .dweek {
+    background: #0c1118;
+    border: 1px solid #151e2a;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 8.5px;
+    line-height: 1.55;
+    color: #6a7a8a;
+  }
+  .dweek .dw-label {
+    font-size: 8px; font-weight: 500;
+    color: #5a7a9a; margin-bottom: 3px;
+  }
+
+  /* ── DECISIONS ── */
+  .decisions { margin: 0 auto 20px; }
+  .decisions h2 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 300; font-size: 15px;
+    color: #7088a0; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 12px; text-align: center;
+  }
+  .dec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dec-card {
+    background: #0b0f14; border: 1px solid #151e2a;
+    border-radius: 5px; padding: 10px 12px;
+  }
+  .dec-card .dq { font-size: 10px; color: #a0b0c0; margin-bottom: 4px; }
+  .dec-card .dw { font-size: 8.5px; color: #4a5868; margin-bottom: 7px; }
+  .dec-card .dos { display: flex; gap: 6px; }
+  .dec-card .dout {
+    flex: 1; padding: 5px 7px; border-radius: 3px; font-size: 8.5px; line-height: 1.45;
+  }
+  .dout.dy { background: #0b1a0e; border: 1px solid #3fb95033; color: #6ab880; }
+  .dout.dn { background: #181208; border: 1px solid #d2992233; color: #b89050; }
+  .dout-lbl { font-weight: 500; font-size: 7.5px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
+
+  /* ── DEAD / FALLBACK / FOOTER ── */
+  .dead-zone {
+    background: linear-gradient(90deg, #150606 0%, #100404 100%);
+    border: 1px solid #f8514922; border-radius: 5px;
+    padding: 10px 16px; margin-bottom: 14px;
+    font-size: 9.5px; color: #b06060; line-height: 1.65;
+  }
+  .dead-zone .dz-t {
+    font-size: 8.5px; font-weight: 500; color: #f85149;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;
+  }
+
+  .fallback {
+    background: linear-gradient(135deg, #0e1018 0%, #0a0e14 100%);
+    border: 1px solid #4a556622; border-radius: 5px;
+    padding: 10px 16px; margin-bottom: 14px;
+    font-size: 9.5px; color: #6a7a8a; line-height: 1.65;
+  }
+  .fallback .fb-t {
+    font-size: 8.5px; font-weight: 500; color: #8090a5;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;
+  }
+
+  .footer {
+    text-align: center; padding-top: 14px;
+    border-top: 1px solid #151c28;
+    font-size: 9px; color: #2a3545;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="header">
+  <h1>Post-Retraction Roadmap: Viable Paths to P ≠ NP</h1>
+  <div class="sub">March 2026 · After Refutation of Conjecture 14.1 (Sub-cube Lifting) · Sheaf-Theoretic Framework</div>
+</div>
+
+<div class="priority">
+  <div class="lbl">Immediate Priority — Start Here</div>
+  <div class="txt"><strong>Analyze OD against the Atserias–Müller uniform magnification distinguisher conditions</strong> (Path A, Steps 1–3). Bounded scope: 2–4 months. Success criterion: ∃ P-uniform {F_n}, |F_n| = O(N), with Pr[F_n = 1 | OD = 1] − Pr[F_n = 1 | OD = 0] ≥ δ > 0. The outcome determines the entire near-term direction.</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="ldot cond"></div>Conditional</div>
+  <div class="legend-item"><div class="ldot uncond"></div>Unconditional</div>
+  <div class="legend-item"><div class="ldot spec"></div>Speculative</div>
+  <div class="legend-item"><div class="ldot supp"></div>Supporting</div>
+  <div class="legend-item"><div class="ldot target"></div>Open target</div>
+  <div class="legend-item"><div class="ldot dead"></div>Refuted</div>
+  <div class="legend-item"><div class="ldot synergy"></div>Cross-path synergy</div>
+</div>
+
+<!-- ═══════ DAG ═══════ -->
+<div class="dag-wrap">
+<svg width="1060" height="600" viewBox="0 0 1060 600">
+  <defs>
+    <marker id="a" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#1e2e40" stroke-width="0.8"/></marker>
+    <marker id="ay" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#d29922" stroke-width="0.8"/></marker>
+    <marker id="ag" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#3fb950" stroke-width="0.8"/></marker>
+    <marker id="ap" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#8b5cf6" stroke-width="0.8"/></marker>
+    <marker id="af" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#3a4555" stroke-width="0.8"/></marker>
+    <marker id="ac" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0,0 L5,2 L0,4" fill="none" stroke="#22d3ee" stroke-width="0.8"/></marker>
+  </defs>
+
+  <!-- FOUNDATION -->
+  <rect class="nbox found" x="190" y="20" width="680" height="62"/>
+  <text class="ntitle" x="530" y="40" style="font-size:10.5px; fill:#7aa8d0;">Unconditional Foundation (Parts I–III)</text>
+  <text class="nsub" x="530" y="56" style="fill:#4a6878; font-size:8px;">A: No polymorphism · B: Compatible families · C: Ω(N/log N) non-locality · Q_d ≥ Ω(N/poly(n)) · SAT_R ∉ AC⁰ (large k)</text>
+  <text class="nsub u" x="530" y="72">✅ All valid</text>
+
+  <!-- Foundation → Paths -->
+  <line class="edge sol" x1="360" y1="82" x2="215" y2="130" marker-end="url(#a)"/>
+  <line class="edge sol" x1="530" y1="82" x2="530" y2="130" marker-end="url(#a)"/>
+  <line class="edge sol" x1="700" y1="82" x2="845" y2="130" marker-end="url(#a)"/>
+  <!-- Foundation → Tracks -->
+  <line class="edge sup" x1="270" y1="82" x2="105" y2="262"/>
+  <line class="edge sup" x1="790" y1="82" x2="960" y2="262"/>
+
+  <!-- PATH A -->
+  <rect class="nbox pa" x="105" y="132" width="220" height="58"/>
+  <text class="ntitle" x="215" y="148">Path A: Uniform Magnification</text>
+  <text class="nsub" x="215" y="161" style="fill:#a88a40; font-size:7.5px;">Atserias–Müller (Thm 16.1)</text>
+  <text class="nsub c" x="215" y="175">⚠️ Conditional · 2–4 mo verify</text>
+  <text class="expert-tag" x="215" y="185">Complexity theory, meta-complexity</text>
+
+  <!-- PATH B -->
+  <rect class="nbox pb" x="405" y="132" width="250" height="58"/>
+  <text class="ntitle" x="530" y="148">Path B: Direct Non-Local Amplification</text>
+  <text class="nsub" x="530" y="161" style="fill:#50906a; font-size:7.5px;">Čech→formula · Sunflower · Spectral · Topo-degree</text>
+  <text class="nsub u" x="530" y="175">✦ Unconditional · 12+ mo</text>
+  <text class="expert-tag" x="530" y="185">Sheaf theory + circuit complexity</text>
+
+  <!-- PATH C -->
+  <rect class="nbox pc" x="735" y="132" width="220" height="58"/>
+  <text class="ntitle" x="845" y="148">Path C: Cocycle Variety V_T</text>
+  <text class="nsub" x="845" y="161" style="fill:#8a68b0; font-size:7.5px;">Nullstellensatz degree · Macaulay2/Singular</text>
+  <text class="nsub s" x="845" y="175">✧ Speculative · 6–12 mo</text>
+  <text class="expert-tag" x="845" y="185">Algebraic geometry, proof complexity</text>
+
+  <!-- ── CROSS-PATH SYNERGY ARROWS ── -->
+  <!-- C → A (small-case diagnostics) -->
+  <path class="edge syn" d="M735,160 Q680,125 325,155" marker-end="url(#ac)"/>
+  <text x="540" y="122" style="font-size:6.5px; fill:#22d3ee88; text-anchor:middle;">V_T diagnostics inform A</text>
+
+  <!-- C → B (combinatorial structure) -->
+  <path class="edge syn" d="M735,170 Q700,170 655,165" marker-end="url(#ac)"/>
+
+  <!-- A fail → B (opacity features) -->
+  <path class="edge syn" d="M325,175 Q365,195 405,175" marker-end="url(#ac)"/>
+  <text x="365" y="200" style="font-size:6.5px; fill:#22d3ee88; text-anchor:middle;">A failure → B targets</text>
+
+  <!-- E → B -->
+  <path class="edge syn" d="M955,272 Q920,230 655,172" marker-end="url(#ac)"/>
+  <text x="830" y="228" style="font-size:6.5px; fill:#22d3ee88; text-anchor:middle;">CC insights → B</text>
+
+  <!-- DEAD NODE -->
+  <rect class="nbox dead" x="105" y="238" width="165" height="30"/>
+  <text x="187" y="250" style="font-size:8.5px; fill:#f8514944; text-anchor:middle; text-decoration:line-through;">Sub-cube Lifting (14.1)</text>
+  <text x="187" y="262" style="font-size:7px; fill:#f8514955; text-anchor:middle;">✕ REFUTED</text>
+  <line x1="107" y1="238" x2="268" y2="268" style="stroke:#f8514933; stroke-width:1.2;"/>
+  <line x1="107" y1="268" x2="268" y2="238" style="stroke:#f8514933; stroke-width:1.2;"/>
+
+  <!-- TRACKS -->
+  <rect class="nbox trk" x="22" y="298" width="170" height="52"/>
+  <text class="ntitle" x="107" y="314" style="font-size:9px;">Track D: AC⁰ Warmup</text>
+  <text class="nsub t" x="107" y="328">k=3 decoupling · 4–8 mo</text>
+  <text class="expert-tag" x="107" y="342">Prob. comb., stat. physics</text>
+
+  <rect class="nbox trk" x="870" y="298" width="170" height="52"/>
+  <text class="ntitle" x="955" y="314" style="font-size:9px;">Track E: CC / Query</text>
+  <text class="nsub t" x="955" y="328">CC(OD) direct · 6–12 mo</text>
+  <text class="expert-tag" x="955" y="342">Comm. complexity, lifting</text>
+
+  <!-- Paths → Bottleneck -->
+  <line class="edge cn" x1="215" y1="190" x2="405" y2="385" marker-end="url(#ay)"/>
+  <line class="edge un" x1="530" y1="190" x2="530" y2="380" marker-end="url(#ag)"/>
+  <line class="edge sp" x1="845" y1="190" x2="655" y2="385" marker-end="url(#ap)"/>
+  <!-- Tracks → Bottleneck (weak) -->
+  <line class="edge sup" x1="192" y1="340" x2="405" y2="398"/>
+  <line class="edge sup" x1="870" y1="340" x2="655" y2="398"/>
+
+  <!-- BOTTLENECK -->
+  <rect class="nbox btn" x="350" y="380" width="360" height="44"/>
+  <text x="530" y="397" style="font-size:11.5px; fill:#d8a0a0; text-anchor:middle; font-weight:500;">OD ∉ SIZE[N^{1+ε}]</text>
+  <text class="nsub o" x="530" y="414">❌ CORE OPEN PROBLEM — no current path</text>
+
+  <!-- Bottleneck → NP -->
+  <line class="edge fut" x1="530" y1="424" x2="530" y2="462" marker-end="url(#af)"/>
+
+  <!-- NP ⊄ P/poly -->
+  <rect class="nbox tgt" x="420" y="464" width="220" height="32"/>
+  <text class="ntitle" x="530" y="478">NP ⊄ P/poly</text>
+  <text class="nsub t" x="530" y="491">via magnification</text>
+
+  <!-- NP → P≠NP -->
+  <line class="edge fut" x1="530" y1="496" x2="530" y2="525" marker-end="url(#af)"/>
+
+  <!-- P ≠ NP -->
+  <rect class="nbox tgt" x="430" y="527" width="200" height="40"/>
+  <text x="530" y="545" style="font-size:15px; fill:#c8d0dc; text-anchor:middle; font-family:'Crimson Pro',serif; font-weight:400;">P ≠ NP</text>
+  <text class="nsub t" x="530" y="562">○ OPEN</text>
+
+  <!-- Brackets -->
+  <rect x="8" y="20" width="3" height="170" rx="1.5" fill="#3fb95018" stroke="#3fb950" stroke-width="0.6"/>
+  <text x="-2" y="105" transform="rotate(-90 -2 105)" style="font-size:7px; fill:#3fb95066; text-anchor:middle;">Valid foundation</text>
+
+  <rect x="1048" y="376" width="3" height="194" rx="1.5" fill="#f8514918" stroke="#f85149" stroke-width="0.6"/>
+  <text x="1060" y="473" transform="rotate(90 1060 473)" style="font-size:7px; fill:#f8514966; text-anchor:middle;">No established path</text>
+
+  <!-- Convergence note -->
+  <text x="365" y="216" style="font-size:7px; fill:#d2992266; text-anchor:end;">A success + B.1 converge →</text>
+  <text x="365" y="224" style="font-size:7px; fill:#d2992266; text-anchor:end;">formula lower bound target</text>
+
+</svg>
+</div>
+
+<!-- ═══════ SYNERGY PANEL ═══════ -->
+<div class="synergy-panel">
+  <div class="sp-title">Cross-Path Synergy Flows</div>
+  <div class="syn-flows">
+    <div class="syn-flow">
+      <div class="sf-route">C → A, B</div>
+      V_T small-case experiments (n = 4–6) serve triple duty: test degree conjecture (C), provide concrete OD instances for distinguisher checks (A), reveal compatible-family structure for Čech-to-formula (B).
+    </div>
+    <div class="syn-flow">
+      <div class="sf-route">A fail → B</div>
+      If OD lacks a P-uniform distinguisher, the failure analysis reveals "computational opacity" — structural features invisible to efficient computation — exactly what Path B's non-local technique must exploit.
+    </div>
+    <div class="syn-flow">
+      <div class="sf-route">E → B</div>
+      Direct CC lower bound techniques reveal which presheaf interactions are inherently non-local across input partitions. These become candidate features for Path B's amplification.
+    </div>
+    <div class="syn-flow">
+      <div class="sf-route">D → A</div>
+      Decoupling techniques (1-RSB, threshold expansion) inform how OD behaves on structured truth tables — relevant to the distributional question in Path A's distinguisher.
+    </div>
+    <div class="syn-flow">
+      <div class="sf-route">A step 4 ↔ B.1</div>
+      If A succeeds, the formula lower bound target converges with B's Čech-to-formula reduction — they become a single research thread.
+    </div>
+    <div class="syn-flow">
+      <div class="sf-route">C boundary cases → all</div>
+      Counterexamples or unexpected degree behavior in V_T computations may falsify assumptions shared across paths. Treat C experiments as program-wide diagnostics.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ EARLY DIAGNOSTICS ═══════ -->
+<div class="diag-strip">
+  <h3>Phase 1 Early Diagnostic Schedule</h3>
+  <div class="diag-weeks">
+    <div class="dweek">
+      <div class="dw-label">Weeks 1–2</div>
+      Extract Atserias–Müller conditions. Formalize distinguisher for OD. Set up Macaulay2; encode V_T for n = 4.
+    </div>
+    <div class="dweek">
+      <div class="dw-label">Weeks 3–4</div>
+      Check P-uniformity of OD witness. Begin bs(SAT_R) simulations at k = 3. Compute V_T for n = 4 truth tables.
+    </div>
+    <div class="dweek">
+      <div class="dw-label">Weeks 5–6</div>
+      Verify formula-model threshold. Extend V_T to n = 5. Begin Čech-to-formula lit review (Path B groundwork).
+    </div>
+    <div class="dweek">
+      <div class="dw-label">Weeks 7–8</div>
+      Interim report. Cross-pollination checkpoint: share V_T + bs(SAT_R) results. Begin pivot planning if A trends negative.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TIMELINE ═══════ -->
+<div class="timeline">
+  <h2>Phased Timeline</h2>
+  <div class="phases">
+    <div class="phase p1">
+      <div class="phase-lbl">Phase 1 — Verification</div>
+      <div class="phase-mo">Months 1–4</div>
+      <ul class="phase-items">
+        <li class="pri"><strong style="color:#5a90d0;">60%</strong> Path A: Atserias–Müller verification</li>
+        <li class="sec"><strong style="color:#d29922;">20%</strong> Track D: bs(SAT_R) experiments, k = 3</li>
+        <li class="ter"><strong style="color:#8b5cf6;">20%</strong> Path C: V_T + Macaulay2; Path B lit review</li>
+      </ul>
+      <div class="phase-note">Phases overlap; B/C groundwork starts from week 1</div>
+    </div>
+    <div class="phase p2">
+      <div class="phase-lbl">Phase 2 — Branch</div>
+      <div class="phase-mo">Months 4–8</div>
+      <ul class="phase-items">
+        <li class="pri"><strong style="color:#5a90d0;">If A ✓:</strong> Formula lower bound (50%)</li>
+        <li class="sec"><strong style="color:#d29922;">If A ✗:</strong> Path B primary (50%)</li>
+        <li class="ter"><strong style="color:#8b5cf6;">Path C parallel (25–30%)</strong></li>
+      </ul>
+      <div class="phase-note">Decision tree shapes all subsequent allocation</div>
+    </div>
+    <div class="phase p3">
+      <div class="phase-lbl">Phase 3 — Deep Research</div>
+      <div class="phase-mo">Months 8–18</div>
+      <ul class="phase-items">
+        <li class="pri">Full commitment to best surviving path</li>
+        <li class="sec">Track D: publish AC⁰ results if ready</li>
+        <li class="ter">Month 12: program-level review gate</li>
+      </ul>
+      <div class="phase-note">If no progress by mo 12 → reassess or pivot</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ DECISIONS ═══════ -->
+<div class="decisions">
+  <h2>Decision Points</h2>
+  <div class="dec-grid">
+    <div class="dec-card">
+      <div class="dq">OD satisfies Atserias–Müller conditions?</div>
+      <div class="dw">Window: months 2–4</div>
+      <div class="dos">
+        <div class="dout dy"><div class="dout-lbl">Yes →</div>Formula lower bound; A primary</div>
+        <div class="dout dn"><div class="dout-lbl">No →</div>Shift to Path B/C</div>
+      </div>
+    </div>
+    <div class="dec-card">
+      <div class="dq">V_T degree experiments show separation?</div>
+      <div class="dw">Window: months 4–6</div>
+      <div class="dos">
+        <div class="dout dy"><div class="dout-lbl">Yes →</div>Invest heavily in Path C</div>
+        <div class="dout dn"><div class="dout-lbl">No →</div>Deprioritize Path C</div>
+      </div>
+    </div>
+    <div class="dec-card">
+      <div class="dq">Decoupling established for k = 3?</div>
+      <div class="dw">Window: months 4–8</div>
+      <div class="dos">
+        <div class="dout dy"><div class="dout-lbl">Yes →</div>Publish standalone AC⁰ paper</div>
+        <div class="dout dn"><div class="dout-lbl">No →</div>Seek bypass or table</div>
+      </div>
+    </div>
+    <div class="dec-card">
+      <div class="dq">Any non-local technique shows promise?</div>
+      <div class="dw">Window: month 12 review</div>
+      <div class="dos">
+        <div class="dout dy"><div class="dout-lbl">Yes →</div>Path B primary; A/C support</div>
+        <div class="dout dn"><div class="dout-lbl">No →</div>A variants, C alt, or program pivot</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ DEAD ZONE ═══════ -->
+<div class="dead-zone">
+  <div class="dz-t">✕ Definitively Off the Table</div>
+  <strong style="color:#e07070;">Sub-cube lifting in any form</strong> — counterexample structural, not parameter-dependent; breaks ρ-structuredness.
+  <strong style="color:#e07070;">Repairing Conj 14.1</strong> — five independent structural reasons, cumulative and unfixable.
+  <strong style="color:#e07070;">Conditional P ≠ NP claims</strong> — require independently justified conjectures with direct evidence.
+</div>
+
+<!-- ═══════ FALLBACK ═══════ -->
+<div class="fallback">
+  <div class="fb-t">Fallback Meta-Outcome (if all paths stall by month 18)</div>
+  Comprehensive characterization of OD's structural hardness (query, non-locality, cohomological, polymorphism, algebraic degree) + documented catalog of why each candidate bridge fails. Publishable at CCC / Computational Complexity as a "magnification gap landscape" reference. Genuine meta-complexity contribution independent of P ≠ NP.
+</div>
+
+<div class="footer">
+  Post-Retraction Roadmap · Sheaf-Theoretic P vs NP Framework · March 2026
+</div>
+
+</div>
+</body>
+</html>
