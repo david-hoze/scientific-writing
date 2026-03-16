@@ -219,3 +219,48 @@ For graph-coloring UNSAT (FI = 0): more edges are needed, but the same degree-2 
 2. Report findings to ChatGPT for strategic reassessment of Path C
 3. Investigate resolution width or GF(2) NS degree as alternative measures
 4. Consider whether the obstruction's *existence* (not its proof complexity) carries useful information
+
+## 2026-03-16 — Session 5: Complete Classification + GF(2) + Roadmap Update
+
+**Context:** Continuing from Session 4. Classification of 302 UNSAT functions by structural pattern was running.
+
+**GF(2) NS degree results:**
+- NS degree over GF(2) = **2** for TT=686 minimal core (35 vars) and full instance (150 vars)
+- Same as over Q — confirms the 2-CSP structure bounds NS degree at 2 over ANY field
+- Grigoriev's Ω(n) GF(2) result for pigeonhole doesn't apply here (pigeonhole is not a 2-CSP)
+
+**Complete structural classification (302/302):**
+
+| Pattern | Count | Type | Weights |
+|---------|-------|------|---------|
+| 0/24/0 | 61 | Graph-coloring | 4, 6, 7 |
+| 1/23/0 | 61 | Graph-coloring | 5, 6, 7 |
+| 2/22/0 | 22 | Graph-coloring | 6 |
+| 1/21/2 | 57 | Edge-incompatible | 4, 8, 12 |
+| 1/22/1 | 34 | Edge-incompatible | 7, 9 |
+| 4/18/2 | 29 | Edge-incompatible | 6, 10 |
+| 0/23/1 | 15 | Edge-incompatible | 9 |
+| 2/20/2 | 13 | Edge-incompatible | 8, 11 |
+| 2/21/1 | 10 | Edge-incompatible | 9 |
+
+**Totals:** 158 edge-incompatible (52.3%) vs 144 graph-coloring (47.7%)
+
+**Hamming weight analysis:**
+- FI=0 (graph-coloring) exists ONLY at weights 4, 5, 6, 7
+- FI>0 (edge-incompatible) exists at weights 4, 6, 7, 8, 9, 10, 11, 12
+- Weight 5 is purely graph-coloring (27 functions, 0 edge-incompatible)
+- Weight 8+ is purely edge-incompatible (96 functions, 0 graph-coloring)
+- Complement symmetry: wt-k and wt-(16-k) have identical counts
+
+**Roadmap update:** Rewrote post_retraction_roadmap.md:
+- Path C downgraded from HIGH to MEDIUM priority
+- Strategy DAG updated: "NS degree = 2 (dead) / Resolution width?"
+- Added 8 new completed items to timeline
+- Decision points updated: "Resolution width grows with n?" replaces "NS degree > 3?"
+- Summary rewritten to reflect NS degree negative result
+
+**Next:**
+1. Complete scan-solve of remaining ~67% of n=4 functions
+2. Test obstruction persistence at s≤5
+3. Investigate resolution width via CDCL proof logging
+4. Commit and push updates
