@@ -382,3 +382,51 @@ Key verification: PC degree ≤ NS degree because NS refutations are valid PC pr
 1. Test more UNSAT functions at s≤5 to confirm dissolution pattern
 2. Focus on Path B (paper submission)
 3. Consider whether obstruction density scaling with n is worth pursuing
+
+## 2026-03-16 — Session 7: n=5 Investigation (Python Pipeline)
+
+**Context:** Following "investigate n=5" directive. Previous Idris2 approach too slow for n=5 (OOM on profiles dump).
+
+**Python pipeline built:** `circuit-presheaf/scripts/n5_scan.py`
+- Full reimplementation of formula enumeration, sub-cube geometry, canonical grouping, profile reduction, and backtracking solver in Python
+- Key optimization: **restriction pattern deduplication** — 18 distinct patterns vs 480 edges (25× speedup on pre-computation)
+- Pre-computation: ~23s for d=3, s≤4 (93K formulas, 121 TTs, 18 patterns)
+- Solve rate: ~5-10 functions/second at n=5
+
+**Formula enumeration results:**
+- d=3, s≤4: 93,315 distinct formulas, 121/256 TTs covered (47.3%)
+- d=3, s≤5: 1,587,920 distinct formulas, 191/256 TTs covered (74.6%)
+
+**Critical discovery: size-budget coverage gap at n=5**
+- For n=5, d=3: 40 sub-cubes, each extracting a 3-variable truth table
+- At s≤4, only 121/256 (47%) 3-var TTs are coverable
+- P(all 40 sub-cubes covered) ≈ 0.47^40 ≈ 10^{-13} for random functions
+- ALL random n=5 functions have empty-domain sub-cubes → trivially UNSAT
+- Analysis corrected to distinguish TRIVIAL/EMPTY_UNSAT/GENUINE_UNSAT
+
+**n=5 results (d=3, s≤4):**
+
+| Category | Lifted (6) | Structured (73) | Random (200) |
+|----------|-----------|-----------------|-------------|
+| SAT (full coverage) | 0 | 20 | 0 |
+| GENUINE UNSAT (full coverage) | 4 | 0 | 0 |
+| EMPTY_UNSAT (trivial) | 0 | 31 | 59 |
+| EMPTY+GENUINE | 2 | 0 | 141 |
+| UNKNOWN | 0 | 1 | 0 |
+| TRIVIAL | 0 | 21 | 0 |
+
+**Key findings:**
+1. **Lifted n=4 UNSAT → n=5 UNSAT**: lift_686 (40/40 covered, 151K dom, 7092 prof, graph-coloring UNSAT) and lift_139 (40/40, 237K dom, 8384 prof, 4 incompat edges) both genuinely UNSAT at n=5
+2. **lift_and variants also UNSAT**: AND with x4 preserves UNSAT with even larger domains
+3. **Symmetric functions: 0 genuine UNSAT** — all 31 "UNSAT" were trivial empty-domain
+4. **Random functions: 70% have genuine subgraph obstructions** but none have full coverage
+5. **MAJ5 is SAT** (26,820 domain, 4400 profiles) — confirmed
+
+**Interpretation:**
+- The n=4→n=5 lifting preserves structural obstructions (not just size artifacts)
+- Obstructions that dissolve at s≤5 in n=4 (like TT=686) do NOT dissolve when lifted to n=5 at s≤4 — the extra variable adds structural rigidity
+- The critical question: do n=5 genuine UNSAT persist at s≤5? Running now.
+
+**n=4 complete scan (in progress):** At 60K/65K, finding ~904 UNSAT (vs 302 at 33% in earlier Idris2 scan). Full count pending.
+
+**n=5 persistence test at s≤5 (running):** Testing lifted TT=686 and TT=139 at s≤5 (1.59M formulas, 191/256 coverage).

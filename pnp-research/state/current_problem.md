@@ -1,49 +1,67 @@
-# Current Problem: Path C — Standard Proof Complexity Exhausted
+# Current Problem: n=5 Obstruction Landscape
 
 ## Context
 
-Path C has been fully investigated for the two standard proof complexity measures. Both yield negative results.
+Path C proof complexity is exhausted (NS=2, res width=initial, PC<=2). The investigation has shifted to understanding how structural obstructions scale with n. A full Python pipeline (`n5_scan.py`) enables efficient n=5 analysis.
 
-## Key Findings
+## Key Findings (Session 7)
 
-### Negative Result 1: NS degree = 2 (Session 4)
+### Finding 1: n=4 Complete Census — 1064 UNSAT Functions
 
-**NS degree of the structural CSP is always 2**, regardless of the function, field (Q or GF(2)), or sub-instance. This is inherent to the 2-CSP structure: one-hot encoding gives degree-2 constraints, and the certificate always exists at degree 2.
+Complete scan of all 65,536 n=4 functions at d=3, s<=4:
+- **1064 UNSAT** (1.62%)
+- **2536 SAT** (3.87%)
+- **Remaining: TRIVIAL/UNKNOWN**
+- Hamming weight distribution symmetric around weight 8, peaking at weights 7 and 9
 
-### Negative Result 2: Resolution width = max initial clause width (Session 6)
+### Finding 2: Lifted n=4 UNSAT → n=5 UNSAT at s<=4
 
-**Resolution width of the one-hot CNF encoding equals the max at-least-one clause width.** For TT=686 core (35 vars): proof width 17 = max initial clause width 17. The Ben-Sasson–Wigderson tradeoff gives: size ≥ 2^((17-17)²/35) = 1. Trivially bounded.
+All tested n=4 UNSAT functions maintain UNSAT when lifted to n=5 at s<=4:
+- lift_686: 40/40 covered, 151K domain, 7092 profiles, graph-coloring UNSAT
+- lift_139: 40/40 covered, 237K domain, 8384 profiles, 4 incompatible edges
+- lift_and variants: also UNSAT
+- lift_xor variants: UNSAT on covered subgraph (28-30/40 coverage)
 
-**Why:** The 2-CSP structure means all constraint clauses are binary (width 2). CDCL conflict analysis resolves these binary clauses with at-least-one (cardinality) clauses. The intermediate resolvents never exceed the cardinality clause width. No "amplification" occurs.
+### Finding 3: n=5 Obstructions Still Dissolve at s<=5
 
-**Additional finding:** Node 2 (domain size 1) is essential — ALL UNSAT subsets of TT=686 contain it. Without the forced node, everything is SAT. Width is bimodal: 1 (unit prop, with enough propagation paths) or 16 (search needed, in sparse subgraphs).
+At s<=5 (1.59M formulas, 191/256 coverage):
+- **lift_686 → SAT** (dissolved, same as at n=4)
+- **lift_xor_139 → EMPTY+GENUINE** (persists on 30/40 covered subgraph)
+- 3 functions → UNKNOWN (solver exhausted at 1M backtracks)
+- 2 functions → SAT
 
-## What's Exhausted
+**Conclusion:** The lifted obstructions are still size-budget artifacts. They dissolve when the formula budget increases, exactly as at n=4. The n=5 dimension does NOT create inherently harder obstructions.
 
-- ❌ NS degree over Q: always 2
-- ❌ NS degree over GF(2): always 2
-- ❌ Resolution width (direct/one-hot encoding): equals max initial clause width
+### Finding 4: Coverage Gap Makes Random n=5 Trivially UNSAT
 
-## Remaining Directions (Low Confidence)
+At n=5, d=3, s<=4: only 121/256 (47%) 3-var truth tables are coverable. Every random n=5 function has empty-domain sub-cubes → trivially UNSAT. No random function has full (40/40) coverage.
 
-1. **Alternative CNF encodings** (log, order): Different encodings change clause structure, potentially enabling width amplification. Not yet tested, but speculative.
-2. **Higher-arity polynomial encoding**: Changes degree structure of polynomial system.
-3. **Lifting theorems**: CSP → circuit complexity, but shallow proof complexity makes this unlikely to work.
-4. **Obstruction counting/density**: How does the fraction of UNSAT functions scale with n? This is *not* proof complexity but could still connect to circuit complexity.
-5. **Different polynomial system**: Encode OD directly rather than the CSP.
+### Finding 5: EMPTY+GENUINE Rate Is High
 
-## Recommended Priority
+Even restricting to the covered subgraph, 70% of random n=5 functions have genuine obstructions. This suggests structural incompatibility is common, but may dissolve at larger sizes.
 
-Path C proof complexity: **LOW** (downgraded from MEDIUM). Standard measures are exhausted. The most productive remaining work is:
-- Complete the scan-solve for full UNSAT census at n=4
-- Test obstruction persistence at s≤5
-- Characterize the obstruction landscape (density vs n)
-- Focus on Path B (paper submission) and the compression bound
+## Assessment
+
+The n=5 investigation confirms the pattern from n=4:
+1. Structural obstructions exist at low size budgets
+2. They dissolve when the size budget increases
+3. No evidence of persistent, size-independent obstructions
+4. The 2-CSP structure is too soft — it's always a 2-coloring problem with trivial algebraic complexity
+
+## Remaining Questions
+
+1. Does the obstruction DENSITY scale with n? (1064/65536 at n=4 — what fraction at n=5 among fully-covered functions?)
+2. Does the dissolution size grow with n? (s<=5 dissolves at n=4; does it require s<=6 at n=5?)
+3. Are there ANY persistent obstructions at any n?
+
+## Recommended Next Steps
+
+1. **Complete the all-lifted scan** (1064 × 3 = 3192 targets at n=5, s<=4) — running
+2. **Focus on Path B** (paper submission): the structural anatomy paper is the most publishable outcome
+3. **Consider Path C formally closed** unless obstruction density shows non-trivial scaling
 
 ## Computational State
 
-- Scan-solve: running (stuck at 121/256), 1 UNSAT found (this restart). Previous incomplete scan found 302/65536.
-- Resolution width tools: `cdcl_width.py`, `resolution_width.py`, `width_scaling.py` operational
-- Profile computation: works for domains ≤ ~5K elements
-- NS degree: works via linear algebra for ≤ ~200 profile variables
-- Idris2 verified solver: operational, zero `believe_me`
+- `n5_scan.py`: Full Python pipeline, ~5 fn/s at n=5, pre-computation ~23s (s<=4) or ~7.5min (s<=5)
+- n=4 UNSAT list: 1064 functions saved to `scripts/n4_unsat.txt`
+- n=5 all-lifted scan: running (3192 targets)

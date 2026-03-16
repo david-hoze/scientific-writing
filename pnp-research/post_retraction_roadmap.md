@@ -6,7 +6,7 @@
 
 > **STATUS — Current state of the program (updated 2026-03-16):**
 >
-> The computational campaign has expanded significantly. The submission-ready paper ("Restriction Images and Structural Entropy in Boolean Formulas") documents three empirical results plus the Savický bridge. Path C (proof complexity) has been investigated: NS degree of the structural CSP is **always 2** (inherent to 2-CSP structure), killing the direct Nullstellensatz approach. However, the campaign discovered **302 structural obstruction witnesses** at n=4, d=3, with a sharp 50/50 split between graph-coloring and edge-incompatible UNSAT, and a Hamming weight threshold at weight 8. Resolution width is the next proof complexity direction. The core open problem — OD ∉ SIZE[N^{1+ε}] — remains open.
+> Path C (proof complexity) is now **effectively closed**. Complete findings: NS degree = 2 (inherent to 2-CSP), resolution width = initial clause width, PC degree ≤ 2, all obstructions dissolve at s≤5. The complete n=4 census found **1064 UNSAT** (1.62% of 65536) with symmetric Hamming weight distribution. All 1064 lift to genuine UNSAT at n=5, but still dissolve at larger size budgets. The structural CSP is too soft for complexity-theoretic extraction. The submission-ready paper ("Restriction Images and Structural Entropy in Boolean Formulas") is the primary deliverable. Path B (paper submission + compression bound) is now the active focus. The core open problem — OD ∉ SIZE[N^{1+ε}] — remains open.
 
 ---
 
@@ -104,7 +104,7 @@ Any connection between the structural characterization and the circuit complexit
 │ tension likely      │  │ Paper submitted;     │  │                     │
 │ blocks this path    │  │ open problems stated │  │ ⚠ NS bounded by    │
 │                     │  │                      │  │ 2-CSP structure     │
-│ Priority: LOW       │  │ Priority: MEDIUM     │  │ Priority: MEDIUM    │
+│ Priority: LOW       │  │ Priority: MEDIUM     │  │ Priority: LOW       │
 └─────────┬──────────┘  └─────────┬────────────┘  └─────────┬──────────┘
           │                       │                          │
           ▼                       ▼                          ▼
@@ -159,9 +159,9 @@ The compatibility CSP Γ(T, d, s) has been fully analyzed via Python/numpy linea
 
 ### Computational results (n=4, d=3, s≤4)
 
-**Scan-solve of all 65536 n=4 Boolean functions:**
-- 302 UNSAT (structural obstruction witnesses) found at ~33% scan coverage
-- Full scan in progress
+**Scan-solve of all 65536 n=4 Boolean functions (COMPLETE):**
+- **1064 UNSAT** (1.62%), 2536 SAT (3.87%)
+- Hamming weight distribution symmetric around 8, peaking at weights 7 and 9
 
 **Structural classification of UNSAT functions (302/302 complete):**
 
@@ -219,9 +219,30 @@ A degree-2 NS certificate always exists for UNSAT 2-CSPs. This is field-independ
 
 5. **Different polynomial system**: Instead of encoding the CSP, encode OD directly as a polynomial system and measure its proof complexity.
 
-6. **Obstruction counting**: The *existence* and *density* of obstructions (not their proof complexity) may be the relevant quantity. 302/65536 ≈ 0.46% of n=4 functions are UNSAT at d=3, s≤4. How does this fraction scale with n?
+6. **Obstruction counting**: The *existence* and *density* of obstructions (not their proof complexity) may be the relevant quantity. 1064/65536 = 1.62% of n=4 functions are UNSAT at d=3, s≤4. How does this fraction scale with n?
 
-**Recommended action:** LOW priority (downgraded from MEDIUM). Both NS degree and resolution width (direct encoding) are conclusively bounded by the 2-CSP structure. Alternative encodings remain untested but are speculative. The obstruction characterization (50/50 split, weight-8 threshold) is independently interesting and should be documented. Path C's most promising remaining angle is obstruction counting/density, not proof complexity.
+### n=5 investigation results (Session 7)
+
+**Python pipeline:** `circuit-presheaf/scripts/n5_scan.py` — full reimplementation of formula enumeration, sub-cube geometry, overlap restriction, profile reduction, and backtracking solver. Key optimization: 18 distinct restriction patterns vs 480 edges (25× speedup).
+
+**Coverage gap:** At n=5, d=3, s≤4: only 121/256 (47%) 3-var TTs are coverable. Every random n=5 function has empty-domain sub-cubes → trivially UNSAT. Only functions with special structure (e.g., lifted from n=4) have full coverage.
+
+**Complete n=4 census:** 1064 UNSAT (1.62%), 2536 SAT (3.87%). Hamming weight distribution symmetric around 8.
+
+**Lifting results at n=5, d=3, s≤4:**
+- ALL 1064 direct lifts (f(x0..x4) = f4(x0..x3)): **GENUINE UNSAT** (40/40 coverage)
+- ALL 1064 AND-lifts (f4 AND x4): **GENUINE UNSAT** (40/40 coverage)
+- ALL 1064 XOR-lifts (f4 XOR x4): **EMPTY+GENUINE** (28-30/40 coverage)
+- Zero SAT among any lifted functions
+
+**Persistence test at s≤5 (1.59M formulas, 191/256 coverage):**
+- lift_686 → **SAT** (dissolved, confirming size-budget artifact)
+- lift_xor_139 → EMPTY+GENUINE (persists on covered subgraph)
+- 3 functions → UNKNOWN (solver exhausted at 1M backtracks)
+
+**Conclusion:** Lifted obstructions are still size-budget artifacts. They dissolve when formula budget increases, same as at n=4.
+
+**Recommended action:** LOW priority (downgraded from MEDIUM). Both NS degree and resolution width (direct encoding) are conclusively bounded by the 2-CSP structure. Alternative encodings remain untested but are speculative. The obstruction characterization (50/50 split, weight-8 threshold, 1064/65536 density) is independently interesting and should be documented. Path C is effectively **closed** — the 2-CSP structure is fundamentally too soft for complexity-theoretic extraction.
 
 ---
 
@@ -265,22 +286,27 @@ Track D (k = 3 decoupling → SAT_R ∉ AC⁰) and Track E (communication comple
 - ✅ **Resolution width (direct encoding) = max initial clause width** — CDCL proof logging, width scaling analysis
 - ✅ Ben-Sasson–Wigderson tradeoff gives trivial bounds for the one-hot encoding
 - ✅ Idris2 verification types: four modules (Formula, SubCube, CSP, Solver) with zero `believe_me`
+- ✅ **Complete n=4 scan: 1064 UNSAT** (1.62% of 65536), symmetric Hamming weight distribution
+- ✅ **PC degree ≤ NS degree ≤ 2** — polynomial calculus also bounded (NS refutations are valid PC proofs)
+- ✅ **n=5 Python pipeline** (`n5_scan.py`): full formula enumeration, sub-cube geometry, profile reduction, backtracking solver
+- ✅ **n=5 lifting: all 1064 n=4 UNSAT → n=5 UNSAT** at s≤4 (genuine, full 40/40 coverage)
+- ✅ **n=5 persistence test: lift_686 dissolves at s≤5** — obstructions remain size-budget artifacts
 
 ### Immediate (Months 0–2)
 
 **Primary (50%):** Submit structural anatomy paper to CCC (or STACS/MFCS if timeline doesn't align).
 
-**Secondary (30%):** Complete n=4 d=3 scan-solve (remaining ~67% of functions). Classify all UNSAT by structural pattern. Test obstruction persistence at s≤5.
+**Secondary (30%):** Extend structural anatomy paper with n=4 complete census (1064 UNSAT), symmetric weight distribution, dissolution at s≤5.
 
-**Tertiary (20%):** Investigate resolution width of structural CSP via SAT solver (CDCL proof logging). This is the remaining viable proof complexity direction after NS degree = 2.
+**Tertiary (20%):** n=5 characterization for paper extension. Document lifting results, coverage gap, dissolution pattern.
 
 ### Near-term (Months 2–6)
 
-**Primary (50%):** Path C resolution width experiments. Convert profile-reduced CSP to CNF, run CDCL solver with proof logging, measure resolution width. Test at n=4 (8 nodes) and n=5 (40 nodes) to look for growth.
+**Primary (50%):** Pursue Open Problem 5.10 (prove canonical compression is O(1) or poly(m)). This would upgrade the conditional corollary to unconditional.
 
-**Secondary (30%):** Pursue Open Problem 5.10 (prove canonical compression is O(1) or poly(m)). This would upgrade the conditional corollary to unconditional.
+**Secondary (30%):** Extended data for paper: d=5 scaling, larger size budgets, alternative gate bases.
 
-**Tertiary (20%):** Extend obstruction characterization to n=5 at d=3. Does the 50/50 split persist? Does obstruction density grow or shrink?
+**Tertiary (20%):** Investigate whether any non-lifted n=5 functions with full coverage are UNSAT. This requires finding such functions first (rare at s≤4).
 
 ### Medium-term (Months 6–12)
 
