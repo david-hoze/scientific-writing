@@ -68,22 +68,47 @@ main = do
       case parsePositive sStr of
         Just s => runBentSub (cast {to=Nat} s) 6 outFile
         _ => putStrLn "Error: --size must be a positive integer"
+    [_, "test", "--tt", ttStr, "--dim", dStr, "--size", sStr] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
+        (Just tt, Just d, Just s) => runTest (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s)
+        _ => putStrLn "Error: --tt, --dim, --size must be positive integers"
     [_, "test", "--tt", ttStr, "--size", sStr] =>
       case (parsePositive ttStr, parsePositive sStr) of
-        (Just tt, Just s) => runTest (cast {to=Bits32} tt) (cast {to=Nat} s)
+        (Just tt, Just s) => runTest (cast {to=Bits32} tt) 2 (cast {to=Nat} s)
         _ => putStrLn "Error: --tt and --size must be positive integers"
     [_, "test", "--tt", ttStr] =>
       case parsePositive ttStr of
-        Just tt => runTest (cast {to=Bits32} tt) 4
+        Just tt => runTest (cast {to=Bits32} tt) 2 4
         _ => putStrLn "Error: --tt must be a positive integer"
+    [_, "test-m2", "--tt", ttStr, "--dim", dStr, "--size", sStr, "--nodes", nStr, "--m2gen", outFile] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr, parsePositive nStr) of
+        (Just tt, Just d, Just s, Just n) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s) (cast {to=Nat} n) outFile
+        _ => putStrLn "Error: all numeric args must be positive integers"
+    [_, "test-m2", "--tt", ttStr, "--dim", dStr, "--size", sStr, "--m2gen", outFile] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
+        (Just tt, Just d, Just s) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s) 24 outFile
+        _ => putStrLn "Error: all numeric args must be positive integers"
     [_, "test-m2", "--tt", ttStr, "--size", sStr, "--nodes", nStr, "--m2gen", outFile] =>
       case (parsePositive ttStr, parsePositive sStr, parsePositive nStr) of
-        (Just tt, Just s, Just n) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} s) (cast {to=Nat} n) outFile
+        (Just tt, Just s, Just n) => runTestM2 (cast {to=Bits32} tt) 2 (cast {to=Nat} s) (cast {to=Nat} n) outFile
         _ => putStrLn "Error: --tt, --size, --nodes must be positive integers"
     [_, "test-m2", "--tt", ttStr, "--size", sStr, "--m2gen", outFile] =>
       case (parsePositive ttStr, parsePositive sStr) of
-        (Just tt, Just s) => runTestM2 (cast {to=Bits32} tt) (cast {to=Nat} s) 24 outFile
+        (Just tt, Just s) => runTestM2 (cast {to=Bits32} tt) 2 (cast {to=Nat} s) 24 outFile
         _ => putStrLn "Error: --tt and --size must be positive integers"
+    [_, "solve", "--tt", ttStr, "--dim", dStr, "--size", sStr] =>
+      case (parsePositive ttStr, parsePositive dStr, parsePositive sStr) of
+        (Just tt, Just d, Just s) => runSolve (cast {to=Bits32} tt) (cast {to=Nat} d) (cast {to=Nat} s)
+        _ => putStrLn "Error: all numeric args must be positive integers"
+    [_, "solve", "--tt", ttStr, "--size", sStr] =>
+      case (parsePositive ttStr, parsePositive sStr) of
+        (Just tt, Just s) => runSolve (cast {to=Bits32} tt) 2 (cast {to=Nat} s)
+        _ => putStrLn "Error: --tt and --size must be positive integers"
+    [_, "scan-solve", "--dim", dStr, "--size", sStr] =>
+      case (parsePositive dStr, parsePositive sStr) of
+        (Just d, Just s) => runScanSolve (cast {to=Nat} d) (cast {to=Nat} s)
+        _ => putStrLn "Error: --dim and --size must be positive integers"
+    [_, "scan-solve"] => runScanSolve 3 4
     [_, "scan"] => runScan 4 2
     [_, "scan", "--top", kStr] =>
       case parsePositive kStr of
@@ -100,7 +125,8 @@ main = do
             putStrLn "  circuit-presheaf bent --size S --m2gen FILE.m2"
             putStrLn "  circuit-presheaf bent-sub --size S [--nodes N] --m2gen FILE.m2"
             putStrLn "  circuit-presheaf test --tt TT [--size S]"
-            putStrLn "  circuit-presheaf test-m2 --tt TT --size S [--nodes N] --m2gen FILE.m2"
+            putStrLn "  circuit-presheaf test-m2 --tt TT [--dim D] --size S [--nodes N] --m2gen FILE.m2"
+            putStrLn "  circuit-presheaf solve --tt TT [--dim D] --size S"
             putStrLn "  circuit-presheaf scan [--top K]"
             putStrLn "  circuit-presheaf m2run FILE.m2"
   where
@@ -271,14 +297,14 @@ main = do
           unique = foldl (\s, t => SortedSet.insert t s) SortedSet.empty tts
       in length (SortedSet.toList unique)
 
-    runTest : Bits32 -> Nat -> IO ()
-    runTest targetTT maxS = do
+    runTest : Bits32 -> Nat -> Nat -> IO ()
+    runTest targetTT d maxS = do
       let n : Nat = 4
-      let d : Nat = 2
       putStrLn $ "Function TT=" ++ toHex targetTT ++ " (" ++ show targetTT ++ " dec)"
       putStrLn $ "  n=" ++ show n ++ ", d=" ++ show d
       let nDistinct = countDistinctSubFunctions n d targetTT
-      putStrLn $ "  Distinct sub-functions: " ++ show nDistinct ++ "/16"
+      let maxSubs : Nat = numFunctions d
+      putStrLn $ "  Distinct sub-functions: " ++ show nDistinct ++ "/" ++ show maxSubs
       putStrLn $ "s<= | empty | struct C/P/I | semantic C/I"
       putStrLn $ "----|-------|-------------|-------------"
       let printSize : Nat -> IO ()
@@ -292,10 +318,10 @@ main = do
       let sizes : List Nat = case maxS of Z => [0]; S k => [0 .. S k]
       traverse_ printSize sizes
 
-    runTestM2 : Bits32 -> Nat -> Nat -> String -> IO ()
-    runTestM2 targetTT maxS numNodes outFile = do
-      putStrLn $ "M2 test: TT=" ++ toHex targetTT ++ ", s<=" ++ show maxS ++ ", nodes=" ++ show numNodes
-      let cspData = buildCSPData 4 2 maxS targetTT
+    runTestM2 : Bits32 -> Nat -> Nat -> Nat -> String -> IO ()
+    runTestM2 targetTT d maxS numNodes outFile = do
+      putStrLn $ "M2 test: TT=" ++ toHex targetTT ++ ", d=" ++ show d ++ ", s<=" ++ show maxS ++ ", nodes=" ++ show numNodes
+      let cspData = buildCSPData 4 d maxS targetTT
       let res = cspResult cspData
       putStrLn $ "Full CSP: " ++ show (nodeCount res) ++ " nodes, " ++ show (edgeCount res) ++ " edges"
       putStrLn $ "  Empty domains: " ++ show (emptyDomainNodes res)
@@ -324,6 +350,64 @@ main = do
             then putStrLn "UNSATISFIABLE"
             else putStrLn "SATISFIABLE (or inconclusive)"
         else putStrLn $ "Too large for auto-run (" ++ show totalVars ++ " vars). Run: M2 --script " ++ outFile
+
+    runSolve : Bits32 -> Nat -> Nat -> IO ()
+    runSolve targetTT d maxS = do
+      let n : Nat = 4
+      putStrLn $ "Solving structural CSP: TT=" ++ toHex targetTT ++ ", n=" ++ show n ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
+      let cspData = buildCSPData n d maxS targetTT
+      let res = cspResult cspData
+      putStrLn $ "  Nodes: " ++ show (nodeCount res) ++ " (" ++ show (emptyDomainNodes res) ++ " empty)"
+      putStrLn $ "  Edges: " ++ show (edgeCount res)
+      let totalVars : Nat = foldl (\acc, (_, dom) => acc + length dom) (the Nat 0) (cspNodes cspData)
+      putStrLn $ "  Domain elements (after dedup): " ++ show totalVars
+      if emptyDomainNodes res > 0
+        then putStrLn "  UNSAT (trivial: empty domain)"
+        else do
+          let result = solveCSP cspData 1000000
+          case result of
+            SatResult sol => putStrLn $ "  SAT — compatible family found (" ++ show (length sol) ++ " assignments)"
+            UnsatResult => putStrLn "  UNSAT (or fuel exhausted at 1M backtracks)"
+
+    ||| Scan all n=4 functions, find those with all domains non-empty at (d, s),
+    ||| then solve their structural CSP.
+    runScanSolve : Nat -> Nat -> IO ()
+    runScanSolve d maxS = do
+      let n : Nat = 4
+      putStrLn $ "Scan-solve: n=" ++ show n ++ ", d=" ++ show d ++ ", s<=" ++ show maxS
+      putStrLn "Enumerating..."
+      let subRes = enumerate d maxS
+      putStrLn $ "  " ++ show (totalCount subRes) ++ " formulas, " ++ show (functionsCovered subRes) ++ "/" ++ show (numFunctions d) ++ " functions covered"
+      let coveredTTs : SortedSet Bits32 = SortedSet.fromList (map fst (SortedMap.toList (byTruthTable subRes)))
+      let scs = allSubCubes n d
+      putStrLn $ "  " ++ show (length scs) ++ " sub-cubes"
+      fflush stdout
+      -- Scan and solve in IO loop
+      let numFuncs : Bits32 = cast (numFunctions n)
+      scanLoop n d scs coveredTTs subRes 0 numFuncs 0 0
+    where
+      isCovered : Nat -> Bits32 -> List SubCube -> SortedSet Bits32 -> Bool
+      isCovered n tt scs coveredTTs =
+        all (\sc => contains (subFunction n tt sc) coveredTTs) scs
+
+      scanLoop : Nat -> Nat -> List SubCube -> SortedSet Bits32 -> EnumResult -> Bits32 -> Bits32 -> Nat -> Nat -> IO ()
+      scanLoop n d scs coveredTTs subRes i limit nSat nUnsat =
+        if i >= limit
+          then putStrLn $ "Done: " ++ show nSat ++ " SAT, " ++ show nUnsat ++ " UNSAT (of " ++ show (nSat + nUnsat) ++ " eligible)"
+          else do
+            let tt : Bits32 = i
+            if isCovered n tt scs coveredTTs
+              then do
+                let cspData = buildCSPDataWith n d subRes tt
+                let result = solveCSP cspData 1000000
+                case result of
+                  SatResult _ => do
+                    scanLoop n d scs coveredTTs subRes (i + 1) limit (S nSat) nUnsat
+                  UnsatResult => do
+                    putStrLn $ "  *** UNSAT: " ++ toHex tt ++ " (" ++ show tt ++ ")"
+                    fflush stdout
+                    scanLoop n d scs coveredTTs subRes (i + 1) limit nSat (S nUnsat)
+              else scanLoop n d scs coveredTTs subRes (i + 1) limit nSat nUnsat
 
     ||| Scan all 2^(2^n) functions for sub-function diversity.
     ||| Functions using more of the 2^(2^d) possible sub-functions are

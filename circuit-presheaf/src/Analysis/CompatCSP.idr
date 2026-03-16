@@ -264,6 +264,34 @@ buildCSPData n d maxSize targetTT =
       res = MkCSPResult (length scs) (length edges) fc pc fi ed
   in MkCSPData nodes edgeGrps res
 
+||| Build CSP data using a pre-computed EnumResult (avoids re-enumerating).
+export
+buildCSPDataWith : (n : Nat) -> (d : Nat) -> EnumResult -> Bits32 -> CSPData
+buildCSPDataWith n d fullRes targetTT =
+  let scs = allSubCubes n d
+      neededTTs = foldl (\s, sc => SortedSet.insert (subFunction n targetTT sc) s)
+                    SortedSet.empty scs
+      subRes = filterEnum neededTTs fullRes
+      edges = structuralEdges scs
+      domains = map (getDomainDedup n targetTT subRes) scs
+      idxs : List Nat = case length scs of Z => []; S k => [0 .. k]
+      nodes = zipWith (\i, dom => (i, map canonical dom)) idxs domains
+      edgeGrps = map (\(i, j) =>
+        let sci = orDefault (MkSubCube [] []) (indexList i scs)
+            scj = orDefault (MkSubCube [] []) (indexList j scs)
+            domI = orDefault [] (indexList i domains)
+            domJ = orDefault [] (indexList j domains)
+        in MkCSPEdgeGroups i j
+             (overlapGroups sci scj domI)
+             (overlapGroups scj sci domJ)) edges
+      classifications = map (classifyOneEdge scs domains) edges
+      fc = length (filter isFullyCompat classifications)
+      pc = length (filter isPartialCompat classifications)
+      fi = length (filter isFullyIncompat classifications)
+      ed = length (filter (\dom => length dom == 0) domains)
+      res = MkCSPResult (length scs) (length edges) fc pc fi ed
+  in MkCSPData nodes edgeGrps res
+
 ||| Extract a sub-instance: keep only nodes in the given index set,
 ||| and edges between them. Re-indexes domain elements within each node.
 export
@@ -314,3 +342,102 @@ bfsExpand seed maxNodes cspData =
           toAdd = take remaining nbrs
           visited' = foldl (\s, n => SortedSet.insert n s) visited toAdd
       in go (qs ++ toAdd) visited' (minus remaining (length toAdd)) edges empty
+
+--- CSP Solver (backtracking with forward checking) ---
+
+||| Solver result: SAT with a witness, or UNSAT.
+public export
+data SolveResult = SatResult (List (Nat, Nat))   -- (nodeIdx, domainIdx) pairs
+                 | UnsatResult
+
+export
+Show SolveResult where
+  show (SatResult assignments) = "SAT: " ++ show assignments
+  show UnsatResult = "UNSAT"
+
+export
+isSat : SolveResult -> Bool
+isSat (SatResult _) = True
+isSat UnsatResult = False
+
+||| For each edge and each domain element, store its overlap canonical key.
+||| An EdgeKeyMap maps: domIdx -> canonical key (String).
+||| Two elements are compatible on this edge iff they have the same key.
+||| This is O(D) per edge to build, O(1) to check compatibility.
+record EdgeKeys where
+  constructor MkEdgeKeys
+  ekNodeI : Nat
+  ekNodeJ : Nat
+  keysI : SortedMap Nat String   -- domIdx at nodeI -> canonical key
+  keysJ : SortedMap Nat String   -- domIdx at nodeJ -> canonical key
+
+||| Build edge keys from canonical groups.
+||| groupsI maps canonical_key -> [domIdx], so we invert to domIdx -> canonical_key.
+invertGroups : CanonGroups -> SortedMap Nat String
+invertGroups groups =
+  foldl addEntries empty (SortedMap.toList groups)
+  where
+    addEntries : SortedMap Nat String -> (String, List Nat) -> SortedMap Nat String
+    addEntries m (k, ids) = foldl (\m', idx => insert idx k m') m ids
+
+mkEdgeKeys : CSPEdgeGroups -> EdgeKeys
+mkEdgeKeys eg = MkEdgeKeys (edgeI eg) (edgeJ eg)
+                  (invertGroups (groupsI eg)) (invertGroups (groupsJ eg))
+
+||| Check if value valIdx at nodeIdx is compatible with the assigned value
+||| at the other end of an edge. O(1) lookup per edge.
+checkEdge : Nat -> Nat -> Nat -> Nat -> EdgeKeys -> Bool
+checkEdge nodeIdx valIdx otherNode otherVal ek =
+  if ekNodeI ek == nodeIdx && ekNodeJ ek == otherNode then
+    case (lookup valIdx (keysI ek), lookup otherVal (keysJ ek)) of
+      (Just k1, Just k2) => k1 == k2
+      _ => False
+  else if ekNodeJ ek == nodeIdx && ekNodeI ek == otherNode then
+    case (lookup valIdx (keysJ ek), lookup otherVal (keysI ek)) of
+      (Just k1, Just k2) => k1 == k2
+      _ => False
+  else True
+
+||| Check consistency against all assigned neighbors.
+||| Only checks edges involving this node where the other end is assigned.
+isConsistent : Nat -> Nat -> SortedMap Nat Nat -> List EdgeKeys -> Bool
+isConsistent nodeIdx valIdx assignment edges =
+  all checkOneEdge edges
+  where
+    checkOneEdge : EdgeKeys -> Bool
+    checkOneEdge ek =
+      let otherNode = if ekNodeI ek == nodeIdx then ekNodeJ ek
+                      else if ekNodeJ ek == nodeIdx then ekNodeI ek
+                      else nodeIdx  -- not relevant
+      in if otherNode == nodeIdx then True  -- edge doesn't involve this node
+         else case lookup otherNode assignment of
+                Nothing => True
+                Just otherVal => checkEdge nodeIdx valIdx otherNode otherVal ek
+
+||| Backtracking CSP solver with forward checking.
+||| Fuel: maximum number of backtracks before giving up.
+export
+solveCSP : CSPData -> Nat -> SolveResult
+solveCSP cspData fuel =
+  let nonEmpty = filter (\(_, dom) => length dom > 0) (cspNodes cspData)
+      sorted = sortBy (\(_, d1), (_, d2) => compare (length d1) (length d2)) nonEmpty
+      nodeOrder = map (\(i, dom) => (i, length dom)) sorted
+      edges = map mkEdgeKeys (cspEdgeGroups cspData)
+  in go nodeOrder empty edges fuel
+  where
+    mutual
+      go : List (Nat, Nat) -> SortedMap Nat Nat -> List EdgeKeys -> Nat -> SolveResult
+      go [] assignment _ _ = SatResult (SortedMap.toList assignment)
+      go _ _ _ 0 = UnsatResult
+      go ((nodeIdx, domSize) :: rest) assignment edges remaining =
+        tryValues nodeIdx 0 domSize rest assignment edges remaining
+
+      tryValues : Nat -> Nat -> Nat -> List (Nat, Nat) -> SortedMap Nat Nat -> List EdgeKeys -> Nat -> SolveResult
+      tryValues _ _ _ _ _ _ 0 = UnsatResult
+      tryValues nodeIdx idx domSize rest assignment edges remaining =
+        if idx >= domSize then UnsatResult
+        else if isConsistent nodeIdx idx assignment edges
+          then case go rest (insert nodeIdx idx assignment) edges (minus remaining 1) of
+                 SatResult sol => SatResult sol
+                 UnsatResult => tryValues nodeIdx (S idx) domSize rest assignment edges (minus remaining 1)
+          else tryValues nodeIdx (S idx) domSize rest assignment edges remaining
