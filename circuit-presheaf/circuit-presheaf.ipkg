@@ -14,6 +14,10 @@ modules = Circuit.Formula
         , Algebra.M2Gen
         , Algebra.M2Parse
         , Algebra.NSDriver
+        , Verified.Formula
+        , Verified.SubCube
+        , Verified.CSP
+        , Verified.Solver
         , Main
 
 main = Main
