@@ -1,6 +1,7 @@
 module Verified.Solver
 
 import Verified.CSP
+import Verified.Exhaustive
 import Analysis.CompatCSP
 import Decidable.Equality
 import Data.Vect
@@ -55,13 +56,14 @@ record SATWitness (nn : Nat) (ds : Vect nn Nat)
 
 --- UNSAT certificate (only real proofs) ---
 
-||| UNSAT certificate. Only TrivialUnsat is valid: a node with empty domain.
-||| This is a genuine proof of infeasibility — if any node has zero domain
-||| elements, no total assignment can exist.
+||| UNSAT certificate. Two forms of genuine proof:
+||| - TrivialUnsat: a node with empty domain (no assignment possible).
+||| - ExhaustiveUnsat: complete search with independently verified certificate.
 public export
 data UNSATCert : {nn : Nat} -> Vect nn Nat -> Type where
   TrivialUnsat : (node : Fin nn) -> (0 prf : index node ds = 0) ->
                  UNSATCert {nn} ds
+  ExhaustiveUnsat : (cert : RefutationCert) -> UNSATCert {nn} ds
 
 --- Verified solve result ---
 
@@ -178,12 +180,19 @@ verifiedSolve cspData fuel =
          -- Check if we can produce a genuine UNSAT certificate
          case scanForEmpty ds 0 (cspNodes cspData) of
            Just cert => Right (nn ** ds ** vedges ** VUnsat cert)
-           Nothing   => Right (nn ** ds ** vedges ** VInconclusive fuel)
+           Nothing   =>
+             -- Try exhaustive solver with certificate
+             case exhaustiveVerifiedSolve cspData of
+               Right (cert, True) =>
+                 Right (nn ** ds ** vedges ** VUnsat (ExhaustiveUnsat cert))
+               _ => Right (nn ** ds ** vedges ** VInconclusive fuel)
 
 export
 Show (VSolveResult nn ds edges) where
   show (VSat _) = "VSAT (verified witness)"
   show (VUnsat (TrivialUnsat node _)) =
     "VUNSAT (empty domain at node " ++ show (finToNat node) ++ ")"
+  show (VUnsat (ExhaustiveUnsat _)) =
+    "VUNSAT (exhaustive search with verified certificate)"
   show (VInconclusive fuel) =
     "VINCONCLUSIVE (solver returned UNSAT after " ++ show fuel ++ " fuel, no proof)"

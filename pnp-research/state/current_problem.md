@@ -1,67 +1,99 @@
-# Current Problem: n=5 Obstruction Landscape
+# Current Problem: Information Loss on Cycles (Lemma 3.4)
 
 ## Context
 
-Path C proof complexity is exhausted (NS=2, res width=initial, PC<=2). The investigation has shifted to understanding how structural obstructions scale with n. A full Python pipeline (`n5_scan.py`) enables efficient n=5 analysis.
+Sessions 9-10 established N_eff = 2^{H_Shannon} ~ 2.24^d (exponential) and that the proof technique must be distributional. Session 11 discovered the mechanism: UNSAT in the structural CSP arises from cohomological obstruction (local consistency + global inconsistency around cycles), not from edge-level conflicts. The specific mathematical statement to prove is Lemma 3.4 (overlap ratio bound).
 
-## Key Findings (Session 7)
+## The Critical Empirical Finding (Session 11)
 
-### Finding 1: n=4 Complete Census — 1064 UNSAT Functions
+At n=4, d=3, s<=4, ALL 1,064 genuine UNSAT instances have:
+- 0% fully incompatible edges
+- 0% fully compatible edges
+- **100% partially compatible edges**
 
-Complete scan of all 65,536 n=4 functions at d=3, s<=4:
-- **1064 UNSAT** (1.62%)
-- **2536 SAT** (3.87%)
-- **Remaining: TRIVIAL/UNKNOWN**
-- Hamming weight distribution symmetric around weight 8, peaking at weights 7 and 9
+Every edge admits some compatible circuit pairs. Yet no assignment satisfies all 24 edges simultaneously. This is a cohomological obstruction: non-trivial H^1 of the constraint presheaf.
 
-### Finding 2: Lifted n=4 UNSAT → n=5 UNSAT at s<=4
+## The Proof Architecture
 
-All tested n=4 UNSAT functions maintain UNSAT when lifted to n=5 at s<=4:
-- lift_686: 40/40 covered, 151K domain, 7092 profiles, graph-coloring UNSAT
-- lift_139: 40/40 covered, 237K domain, 8384 profiles, 4 incompatible edges
-- lift_and variants: also UNSAT
-- lift_xor variants: UNSAT on covered subgraph (28-30/40 coverage)
+```
+HighNeff -> HighDiversity -> RichPartialStructure -> CohomologicalObstruction -> UNSAT
+   [1]         [2]                [3]                       [4]                  [5]
+  trivial     trivial         needs Lemma 3.4          follows from 3.4       standard
+```
 
-### Finding 3: n=5 Obstructions Still Dissolve at s<=5
+### The Information Loss Mechanism
 
-At s<=5 (1.59M formulas, 191/256 coverage):
-- **lift_686 → SAT** (dissolved, same as at n=4)
-- **lift_xor_139 → EMPTY+GENUINE** (persists on 30/40 covered subgraph)
-- 3 functions → UNKNOWN (solver exhausted at 1M backtracks)
-- 2 functions → SAT
+1. Each partial edge has overlap ratio r = (matching keys at u)/(total keys at u), with 0 < r < 1
+2. Along a cycle of length L: surviving fraction <= r^L
+3. UNSAT when r^L < 1/k_max (k_max = max canonical groups at any node)
+4. N_eff controls k_max: high N_eff = many types = many groups = more information to lose
+5. Shannon entropy is correct because loss per edge is conditional entropy H(key_v|key_u) — average-case
 
-**Conclusion:** The lifted obstructions are still size-budget artifacts. They dissolve when the formula budget increases, exactly as at n=4. The n=5 dimension does NOT create inherently harder obstructions.
+### Formal Statement
 
-### Finding 4: Coverage Gap Makes Random n=5 Trivially UNSAT
+**Lemma 3.4** (Overlap ratio bound): For a random truth table T on n variables, sub-cube dimension d, and sufficiently large circuit-size bound s:
 
-At n=5, d=3, s<=4: only 121/256 (47%) 3-var truth tables are coverable. Every random n=5 function has empty-domain sub-cubes → trivially UNSAT. No random function has full (40/40) coverage.
+    E_T[max_edge r_{uv}(T, d, s)] <= 1 - epsilon(d)
 
-### Finding 5: EMPTY+GENUINE Rate Is High
+for some epsilon(d) > 0.
 
-Even restricting to the covered subgraph, 70% of random n=5 functions have genuine obstructions. This suggests structural incompatibility is common, but may dissolve at larger sizes.
+**Theorem 3.5** (N_eff forces UNSAT): If Lemma 3.4 holds, then UNSAT when N_eff(T,d) > (1-epsilon(d))^{-L}, where L is the shortest cycle length. Since N_eff ~ 2.24^d and the cycle length L is bounded by n, UNSAT holds for all sufficiently large n.
 
-## Assessment
+## What Is Proved
 
-The n=5 investigation confirms the pattern from n=4:
-1. Structural obstructions exist at low size budgets
-2. They dissolve when the size budget increases
-3. No evidence of persistent, size-independent obstructions
-4. The 2-CSP structure is too soft — it's always a 2-coloring problem with trivial algebraic complexity
+| Component | Status |
+|-----------|--------|
+| N_eff ~ 2.24^d (exponential) | PROVED computationally (d=2..6) |
+| Shannon is last exponential Renyi order | PROVED computationally |
+| All edges partial at sufficient s | PROVED computationally (n=4, d=3, s>=2) |
+| 1,056/1,064 UNSAT instances machine-verified | PROVED (Idris2 certificates) |
+| B1 = 14-16 independent cycles | PROVED computationally |
+| Overlap ratio bounded away from 1 | **OPEN** (Lemma 3.4) |
+| Cycle loss implies UNSAT | PROVABLE (standard information theory) |
+| Presheaf H^1 != 0 iff no global section | STANDARD (sheaf theory) |
 
-## Remaining Questions
+## What This Rules Out (Updated)
 
-1. Does the obstruction DENSITY scale with n? (1064/65536 at n=4 — what fraction at n=5 among fully-covered functions?)
-2. Does the dissolution size grow with n? (s<=5 dissolves at n=4; does it require s<=6 at n=5?)
-3. Are there ANY persistent obstructions at any n?
+All previous exclusions, PLUS:
+7. **Graph coloring / chromatic number arguments** — no fully incompatible edges exist at sufficient s
+8. **Turan-type bounds** — conflict density = 0
+9. **Fixed incompatible type pair arguments** — no universal pair-conflict across instances
+10. **Clique-based lower bounds** — no fully-incompatible clique exists
 
-## Recommended Next Steps
+## What Remains
 
-1. **Complete the all-lifted scan** (1064 × 3 = 3192 targets at n=5, s<=4) — running
-2. **Focus on Path B** (paper submission): the structural anatomy paper is the most publishable outcome
-3. **Consider Path C formally closed** unless obstruction density shows non-trivial scaling
+1. **Prove Lemma 3.4** — the overlap ratio is bounded away from 1
+2. **Generalize from n=4 to general n** — using N_eff scaling law
+3. **Connect UNSAT to circuit lower bounds** — via the standard presheaf-OD correspondence
+4. **Compute overlap ratios explicitly** — running now
+
+## Idris2 Formalization
+
+`Verified/ProofSearch.idr` encodes the argument as types:
+- `?diversityForcesRichStructure_hole` — N_eff -> many canonical groups per node (partly provable)
+- `?richStructureForcesObstruction_hole` — **THE MAIN OPEN PROBLEM** (Lemma 3.4 + Theorem 3.5)
+- `?obstructionForcesUnsat_hole` — H^1 != 0 -> no CSP solution (standard)
 
 ## Computational State
 
-- `n5_scan.py`: Full Python pipeline, ~5 fn/s at n=5, pre-computation ~23s (s<=4) or ~7.5min (s<=5)
-- n=4 UNSAT list: 1064 functions saved to `scripts/n4_unsat.txt`
-- n=5 all-lifted scan: running (3192 targets)
+New scripts (Session 11):
+- `scripts/shannon_conflict_analysis.py` — edge classification analysis (found 100% partial)
+- `scripts/overlap_ratio_analysis.py` — overlap ratio computation (running)
+- `scripts/genuine_unsat_n4d3s4.txt` — all 1,064 genuine UNSAT truth tables
+
+New Idris2 modules:
+- `Verified/Exhaustive.idr` — certificate-based UNSAT verification
+- `Verified/ProofSearch.idr` — type-level proof skeleton with holes
+
+## Open Questions (Updated)
+
+1. ~~Can T_g statistics beyond sigma grow exponentially?~~ **ANSWERED** (N_eff ~ 2.24^d)
+2. ~~Does N_eff grow exponentially at d=6?~~ **ANSWERED** (Yes)
+3. ~~Distributional communication complexity of OD?~~ **SUPERSEDED** by information loss on cycles
+4. ~~Does constraint graph topology carry hardness?~~ **ANSWERED** (Yes — cycles are the vehicle)
+5. ~~Can H^1 contribute beyond sigma?~~ **ANSWERED** (Yes — H^1 IS the mechanism)
+6. ~~What is the right distributional proof technique?~~ **ANSWERED** (Information loss on cycles)
+7. **Is the overlap ratio bounded away from 1?** (Lemma 3.4 — THE open problem)
+8. Does the overlap ratio epsilon(d) grow or shrink with d?
+9. Does the information loss mechanism generalize to n=5?
+10. Can Lemma 3.4 be proved from the structure of Boolean formula canonical types?

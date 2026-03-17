@@ -14,6 +14,7 @@ substitute (Or l r) i v = Or (substitute l i v) (substitute r i v)
 
 ||| Propagate constants and simplify bottom-up.
 ||| Handles: constant folding, double negation, idempotence.
+export
 propagate : Formula -> Formula
 propagate (Input j) = Input j
 propagate (Const b) = Const b
@@ -35,12 +36,26 @@ propagate (Or l r) = case (propagate l, propagate r) of
   (l', r')          => Or l' r'
 
 ||| Re-index remaining inputs: any index > i decrements by 1.
+export
 reindex : (i : Nat) -> Formula -> Formula
 reindex i (Input j) = if j > i then Input (minus j 1) else Input j
 reindex i (Const b) = Const b
 reindex i (Not c) = Not (reindex i c)
 reindex i (And l r) = And (reindex i l) (reindex i r)
 reindex i (Or l r) = Or (reindex i l) (reindex i r)
+
+||| Substitute input x_src with an arbitrary formula,
+||| shifting indices > src down by 1 (removing src from the variable space).
+export
+substituteFormula : Formula -> (src : Nat) -> Formula -> Formula
+substituteFormula (Input j) src replacement =
+  if j == src then replacement
+  else if j > src then Input (minus j 1)
+  else Input j
+substituteFormula (Const b) _ _ = Const b
+substituteFormula (Not c) src rep = Not (substituteFormula c src rep)
+substituteFormula (And l r) src rep = And (substituteFormula l src rep) (substituteFormula r src rep)
+substituteFormula (Or l r) src rep = Or (substituteFormula l src rep) (substituteFormula r src rep)
 
 ||| Restrict a formula by hardwiring input x_i to value v,
 ||| then propagate constants bottom-up and re-index remaining inputs.

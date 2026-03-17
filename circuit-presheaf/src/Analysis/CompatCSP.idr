@@ -365,6 +365,7 @@ isSat UnsatResult = False
 ||| An EdgeKeyMap maps: domIdx -> canonical key (String).
 ||| Two elements are compatible on this edge iff they have the same key.
 ||| This is O(D) per edge to build, O(1) to check compatibility.
+public export
 record EdgeKeys where
   constructor MkEdgeKeys
   ekNodeI : Nat
@@ -382,12 +383,14 @@ invertGroups groups =
     addEntries : SortedMap Nat String -> (String, List Nat) -> SortedMap Nat String
     addEntries m (k, ids) = foldl (\m', idx => insert idx k m') m ids
 
+export
 mkEdgeKeys : CSPEdgeGroups -> EdgeKeys
 mkEdgeKeys eg = MkEdgeKeys (edgeI eg) (edgeJ eg)
                   (invertGroups (groupsI eg)) (invertGroups (groupsJ eg))
 
 ||| Check if value valIdx at nodeIdx is compatible with the assigned value
 ||| at the other end of an edge. O(1) lookup per edge.
+export
 checkEdge : Nat -> Nat -> Nat -> Nat -> EdgeKeys -> Bool
 checkEdge nodeIdx valIdx otherNode otherVal ek =
   if ekNodeI ek == nodeIdx && ekNodeJ ek == otherNode then
@@ -402,6 +405,7 @@ checkEdge nodeIdx valIdx otherNode otherVal ek =
 
 ||| Check consistency against all assigned neighbors.
 ||| Only checks edges involving this node where the other end is assigned.
+export
 isConsistent : Nat -> Nat -> SortedMap Nat Nat -> List EdgeKeys -> Bool
 isConsistent nodeIdx valIdx assignment edges =
   all checkOneEdge edges
