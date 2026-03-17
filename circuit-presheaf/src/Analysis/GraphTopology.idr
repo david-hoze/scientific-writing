@@ -100,6 +100,97 @@ countTriangles g =
     ) tCount (SortedSet.toList nbrsI)
   ) (the Nat 0) nodeList
 
+--- Fundamental cycles (for Approach 1 analysis) ---
+
+||| Build a spanning tree via BFS, returning parent map.
+export
+spanningTree : ConstraintGraph -> SortedMap Nat Nat
+spanningTree g =
+  let nodeList = SortedSet.toList (cgNodes g)
+  in case nodeList of
+    [] => empty
+    (root :: _) => bfsTree [root] (SortedSet.singleton root) (cgAdj g) empty
+  where
+    bfsTree : List Nat -> SortedSet Nat -> SortedMap Nat (List Nat) ->
+              SortedMap Nat Nat -> SortedMap Nat Nat
+    bfsTree [] _ _ parents = parents
+    bfsTree (q :: qs) visited adj parents =
+      let nbrs = case lookup q adj of Nothing => []; Just ns => ns
+          newNbrs = filter (\n => not (SortedSet.contains n visited)) nbrs
+          visited' = foldl (\s, n => SortedSet.insert n s) visited newNbrs
+          parents' = foldl (\m, n => insert n q m) parents newNbrs
+      in bfsTree (qs ++ newNbrs) visited' adj parents'
+
+||| Find path from node to root in spanning tree (returns reversed path).
+pathToRoot : SortedMap Nat Nat -> Nat -> List Nat
+pathToRoot parents node = go node [node] 100
+  where
+    go : Nat -> List Nat -> Nat -> List Nat
+    go _ path 0 = path
+    go n path fuel =
+      case lookup n parents of
+        Nothing => path
+        Just p => go p (p :: path) (minus fuel 1)
+
+stripCommonPrefix : List Nat -> List Nat -> (List Nat, List Nat)
+stripCommonPrefix (x :: xs) (y :: ys) =
+  if x == y then stripCommonPrefix xs ys
+  else (x :: xs, y :: ys)
+stripCommonPrefix xs ys = (xs, ys)
+
+buildCycleFromPaths : SortedMap Nat Nat -> (Nat, Nat) -> List Nat
+buildCycleFromPaths parents (u, v) =
+  let pathU = pathToRoot parents u
+      pathV = pathToRoot parents v
+      (restU, restV) = stripCommonPrefix pathU pathV
+  in restU ++ reverse restV
+
+||| Find fundamental cycles: one per non-tree edge.
+||| Each cycle is a list of node IDs forming a closed path.
+export
+fundamentalCycles : ConstraintGraph -> List (List Nat)
+fundamentalCycles g =
+  let parents = spanningTree g
+      treeEdgeSet = SortedSet.fromList
+        (map (\(c, p) => if c < p then (c, p) else (p, c))
+             (SortedMap.toList parents))
+      nonTreeEdges = filter (\(i, j) =>
+        let e = if i < j then (i, j) else (j, i)
+        in not (SortedSet.contains e treeEdgeSet)) (cgEdges g)
+  in map (buildCycleFromPaths parents) nonTreeEdges
+
+||| Compute information loss for a cycle given an edge overlap ratio map.
+||| Returns -sum(log2(r_i)) for edges in the cycle.
+export
+cycleInfoLoss : List Nat -> SortedMap (Nat, Nat) Double -> Double
+cycleInfoLoss [] _ = 0.0
+cycleInfoLoss [_] _ = 0.0
+cycleInfoLoss cycle ratioMap = go cycle 0.0
+  where
+    lookupRatio : Nat -> Nat -> Double
+    lookupRatio i j =
+      let fwd = lookup (i, j) ratioMap
+          bwd = lookup (j, i) ratioMap
+      in case fwd of
+        Just r => r
+        Nothing => case bwd of
+          Just r => r
+          Nothing => 1.0
+
+    go : List Nat -> Double -> Double
+    go [] acc = acc
+    go [last] acc =
+      -- Close the cycle: edge from last node back to first
+      case cycle of
+        (first :: _) =>
+          let r = lookupRatio last first
+          in if r > 0.0 then acc + negate (log r / log 2.0) else acc + 20.0
+        [] => acc
+    go (a :: b :: rest) acc =
+      let r = lookupRatio a b
+          loss = if r > 0.0 then negate (log r / log 2.0) else 20.0
+      in go (b :: rest) (acc + loss)
+
 --- Edge classification counts ---
 
 ||| Count FC, PC, FI edges from CSP edge groups.
@@ -163,6 +254,64 @@ communicationComplexity eg =
           Nothing => a
           Just idsJ => a + length idsI * length idsJ
       ) 0 pairs
+
+--- Constraint tightness metrics ---
+
+||| Aggregate CC metrics across all edges.
+public export
+record CCMetrics where
+  constructor MkCCMetrics
+  ccTotalOneWay : Nat       -- sum of one-way CC across all edges
+  ccMaxOneWay : Nat         -- max one-way CC (width lower bound)
+  ccMinCompat : Double      -- min compatFraction (tightest constraint)
+  ccAvgCompat : Double      -- average compatFraction
+  ccTightnessSum : Double   -- sum of -log2(compatFrac) across PC+FI edges
+  ccNEdges : Nat            -- number of PC+FI edges analyzed
+
+||| Compute CC metrics across all edge groups.
+export
+ccMetrics : List CSPEdgeGroups -> CCMetrics
+ccMetrics egs =
+  let crs = map communicationComplexity egs
+      nEdges = length crs
+      totalOW = foldl addOneWay 0 crs
+      maxOW = foldl maxOneWay 0 crs
+      minCF = foldl minCompat 1.0 crs
+      sumCF = foldl addCompat 0.0 crs
+      avgCF = if nEdges == 0 then 0.0 else sumCF / cast nEdges
+      tSum = foldl addTightness 0.0 crs
+  in MkCCMetrics totalOW maxOW minCF avgCF tSum nEdges
+  where
+    addOneWay : Nat -> CommResult -> Nat
+    addOneWay a cr = a + crOneWayCC cr
+
+    maxOneWay : Nat -> CommResult -> Nat
+    maxOneWay a cr = max a (crOneWayCC cr)
+
+    minCompat : Double -> CommResult -> Double
+    minCompat a cr = if crCompatFraction cr < a then crCompatFraction cr else a
+
+    addCompat : Double -> CommResult -> Double
+    addCompat a cr = a + crCompatFraction cr
+
+    addTightness : Double -> CommResult -> Double
+    addTightness a cr =
+      let f = crCompatFraction cr
+      in if f > 0.0 && f < 1.0
+         then a + negate (log f / log 2.0)
+         else if f <= 0.0 then a + 20.0
+         else a  -- f == 1.0, fully compatible, contributes 0
+
+||| Compute average and max compatFraction across edges.
+export
+avgMaxCompat : List CSPEdgeGroups -> (Double, Double)
+avgMaxCompat egs =
+  let crs = map communicationComplexity egs
+      fracs = map crCompatFraction crs
+      sumF = foldl (+) 0.0 fracs
+      maxF = foldl (\a, f => if f > a then f else a) 0.0 fracs
+      avgF = if length fracs == 0 then 0.0 else sumF / cast (length fracs)
+  in (avgF, maxF)
 
 --- Type diversity ---
 

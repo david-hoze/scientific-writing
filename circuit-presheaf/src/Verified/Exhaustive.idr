@@ -45,6 +45,26 @@ certSize (CertBranch _ _ reasons) = 1 + foldl (\acc, r => acc + reasonSize r) 0 
 reasonSize (_, Inconsistent _) = 1
 reasonSize (_, DeeperUnsat cert) = 1 + certSize cert
 
+||| Maximum depth of the certificate tree.
+public export
+certDepth : RefutationCert -> Nat
+certDepth (CertEmpty _) = 0
+certDepth (CertBranch _ _ reasons) =
+  1 + foldl (\mx, r => max mx (reasonDepth r)) 0 reasons
+  where
+    reasonDepth : (Nat, RejectReason) -> Nat
+    reasonDepth (_, Inconsistent _) = 0
+    reasonDepth (_, DeeperUnsat cert) = certDepth cert
+
+||| Count immediate (Inconsistent) vs recursive (DeeperUnsat) rejections at root.
+public export
+certRootStats : RefutationCert -> (Nat, Nat)
+certRootStats (CertEmpty _) = (0, 0)
+certRootStats (CertBranch _ _ reasons) =
+  foldl (\(imm, deep), (_, r) => case r of
+    Inconsistent _ => (S imm, deep)
+    DeeperUnsat _ => (imm, S deep)) (0, 0) reasons
+
 --- Certificate-Producing Complete Solver ---
 
 ||| Find the first edge that causes incompatibility for a value.
@@ -108,6 +128,55 @@ solveWithCert cspData =
                    -- Use edge 0 as fallback
                    tryValues nodeIdx (S idx) domSize rest assign ekeys
                      ((idx, Inconsistent 0) :: rejects)
+
+--- Fuel-limited solver ---
+
+||| Solve with a total node-count fuel limit. Returns Nothing if fuel runs out.
+||| Fuel is threaded through: each cert node consumes 1 fuel. Returns remaining fuel.
+export
+solveWithCertFuel : CSPData -> Nat -> Maybe (Either (List (Nat, Nat)) RefutationCert)
+solveWithCertFuel cspData fuel =
+  let nonEmpty = filter (\(_, dom) => length dom > 0) (cspNodes cspData)
+      sorted = sortBy (\(_, d1), (_, d2) => compare (length d1) (length d2)) nonEmpty
+      nodeOrder = map (\(i, dom) => (i, length dom)) sorted
+      ekeys = map mkEdgeKeys (cspEdgeGroups cspData)
+      empties = filter (\(_, dom) => length dom == 0) (cspNodes cspData)
+  in case empties of
+       ((nid, _) :: _) => Just (Right (CertEmpty nid))
+       [] => case goFuel nodeOrder empty ekeys fuel of
+               Nothing => Nothing
+               Just (Left sol, _) => Just (Left sol)
+               Just (Right cert, _) => Just (Right cert)
+  where
+    mutual
+      goFuel : List (Nat, Nat) -> SortedMap Nat Nat -> List EdgeKeys -> Nat ->
+               Maybe (Either (List (Nat, Nat)) RefutationCert, Nat)
+      goFuel _ _ _ 0 = Nothing
+      goFuel [] assign _ fl = Just (Left (SortedMap.toList assign), fl)
+      goFuel ((nodeIdx, domSize) :: rest) assign ekeys fl =
+        tryFuel nodeIdx 0 domSize rest assign ekeys [] fl
+
+      tryFuel : Nat -> Nat -> Nat -> List (Nat, Nat) -> SortedMap Nat Nat ->
+                List EdgeKeys -> List (Nat, RejectReason) -> Nat ->
+                Maybe (Either (List (Nat, Nat)) RefutationCert, Nat)
+      tryFuel _ _ _ _ _ _ _ 0 = Nothing
+      tryFuel nodeIdx idx domSize rest assign ekeys rejects fl =
+        if idx >= domSize
+        then Just (Right (CertBranch nodeIdx domSize (reverse rejects)), minus fl 1)
+        else if isConsistent nodeIdx idx assign ekeys
+          then case goFuel rest (insert nodeIdx idx assign) ekeys (minus fl 1) of
+                 Nothing => Nothing
+                 Just (Left sol, _) => Just (Left sol, 0)
+                 Just (Right cert, fl') =>
+                   tryFuel nodeIdx (S idx) domSize rest assign ekeys
+                     ((idx, DeeperUnsat cert) :: rejects) fl'
+          else case findConflictEdge nodeIdx idx assign ekeys 0 of
+                 Just eidx =>
+                   tryFuel nodeIdx (S idx) domSize rest assign ekeys
+                     ((idx, Inconsistent eidx) :: rejects) (minus fl 1)
+                 Nothing =>
+                   tryFuel nodeIdx (S idx) domSize rest assign ekeys
+                     ((idx, Inconsistent 0) :: rejects) (minus fl 1)
 
 --- Certificate Checker ---
 

@@ -232,6 +232,13 @@ main = do
         (Just d, Just s) => runScan5 (cast {to=Nat} d) (cast {to=Nat} s) strat 100
         _ => putStrLn "Error: --dim and --size must be positive integers"
     [_, "scan5"] => runScan5 3 4 "lifted" 100
+    [_, "cert-analysis", "--file", fPath, "--sample", nStr] =>
+      case parsePositive nStr of
+        Just n => runCertAnalysis fPath (cast {to=Nat} n) False
+        _ => putStrLn "Error: --sample must be a positive integer"
+    [_, "cert-analysis", "--file", fPath, "--info-only"] =>
+      runCertAnalysis fPath 99999 True
+    [_, "cert-analysis", "--file", fPath] => runCertAnalysis fPath 50 False
     [_, "compression", "--dim", dStr, "--max-size", sStr] =>
       case (parsePositive dStr, parsePositive sStr) of
         (Just d, Just s) => runCompression (cast {to=Nat} d) (cast {to=Nat} s)
@@ -265,6 +272,7 @@ main = do
             putStrLn "  circuit-presheaf comm --tt TT [--dim D] --size S"
             putStrLn "  circuit-presheaf vstats --file F [--sample N]"
             putStrLn "  circuit-presheaf scan5 [--dim D --size S --strategy lifted|range --count N]"
+            putStrLn "  circuit-presheaf cert-analysis --file F [--sample N | --info-only]"
             putStrLn "  circuit-presheaf compression [--dim D --max-size S]"
   where
     hexDigit : Bits32 -> Char
@@ -1051,3 +1059,177 @@ main = do
       putStrLn $ "  Avg image = T/N_eff = " ++ showDouble4 avgImage
       putStrLn $ "  sigma_eff = |U|/avg_image = " ++ showDouble4 sigmaEff
       putStrLn $ "  Ratio sigma_eff/sigma = " ++ showDouble4 (sigmaEff / sig)
+
+    -- Certificate size vs information-theoretic bound analysis (Approach 1)
+    buildRatioMap : List EdgeInfo -> SortedMap (Nat, Nat) Double
+    buildRatioMap = foldl addEdgeRatio empty
+      where
+        addEdgeRatio : SortedMap (Nat, Nat) Double -> EdgeInfo -> SortedMap (Nat, Nat) Double
+        addEdgeRatio m ei = insert (eiSrc ei, eiDst ei) (eiRSrc ei) m
+
+    calcCycleLoss : SortedMap (Nat, Nat) Double -> List Nat -> Double
+    calcCycleLoss rm c = cycleInfoLoss c rm
+
+    -- Compute info bound, graph topology, and CC metrics from CSP data
+    computeTopology : CSPData -> (Double, Nat, Nat, Nat, Nat, Nat, CCMetrics)
+    computeTopology cspData =
+      let egs = cspEdgeGroups cspData
+          edges = map edgeInfo egs
+          graph = extractObstructionGraph egs
+          b1Val = betti1 graph
+          nComp = connectedComponents graph
+          nNodes = length (SortedSet.toList (cgNodes graph))
+          nEdges = length (cgEdges graph)
+          cycles = fundamentalCycles graph
+          nCycles = length cycles
+          ratioMap = buildRatioMap edges
+          cycleLosses = map (calcCycleLoss ratioMap) cycles
+          infoBound = foldl (+) 0.0 cycleLosses
+          ccm = ccMetrics egs
+      in (infoBound, nCycles, b1Val, nComp, nNodes, nEdges, ccm)
+
+    printInfoRow : (Bits32, Double, Double, Double, Nat, Nat) -> IO ()
+    printInfoRow (tt, ib, tightSum, minCF, b1, nEdges) = do
+      putStrLn $ "  " ++ toHex tt
+        ++ " | " ++ showDouble4 ib
+        ++ " | " ++ showDouble4 tightSum
+        ++ " | " ++ showDouble4 minCF
+        ++ " | " ++ show b1
+        ++ " | " ++ show nEdges
+      fflush stdout
+
+    processInfoOne : Bits32 -> IO (Bits32, Double, Double, Double, Nat, Nat)
+    processInfoOne tt =
+      let cspData = buildCSPData 4 3 4 tt
+          (ib, nc, b1, comp, nodes, nEdges, ccm) = computeTopology cspData
+      in do printInfoRow (tt, ib, ccTightnessSum ccm, ccMinCompat ccm, b1, nEdges)
+            pure (tt, ib, ccTightnessSum ccm, ccMinCompat ccm, b1, nEdges)
+
+    runInfoOnly : List Bits32 -> IO ()
+    runInfoOnly tts = do
+      putStrLn $ "  Info-only mode: " ++ show (length tts) ++ " instances"
+      putStrLn ""
+      putStrLn "  TT       | info_bound | cc_tight  | min_cf  | B1  | edges"
+      putStrLn "  ---------+------------+-----------+---------+-----+------"
+      results <- traverse processInfoOne tts
+      putStrLn ""
+      -- Summary
+      let bounds = map (\(_, ib, _, _, _, _) => ib) results
+      let minB = foldl (\a, b => if b < a then b else a) 99999.0 bounds
+      let maxB = foldl (\a, b => if b > a then b else a) 0.0 bounds
+      let sumB = foldl (+) 0.0 bounds
+      let avgB = sumB / cast (length bounds)
+      putStrLn $ "  Info bound: min=" ++ showDouble4 minB
+                 ++ " avg=" ++ showDouble4 avgB
+                 ++ " max=" ++ showDouble4 maxB
+      let tights = map (\(_, _, ts, _, _, _) => ts) results
+      let minT = foldl (\a, b => if b < a then b else a) 99999.0 tights
+      let maxT = foldl (\a, b => if b > a then b else a) 0.0 tights
+      let sumT = foldl (+) 0.0 tights
+      let avgT = sumT / cast (length tights)
+      putStrLn $ "  CC tightness: min=" ++ showDouble4 minT
+                 ++ " avg=" ++ showDouble4 avgT
+                 ++ " max=" ++ showDouble4 maxT
+
+    avgDomSize : CSPData -> Double
+    avgDomSize cspData =
+      let doms = map (\(_, dom) => length dom) (cspNodes cspData)
+          sumD = foldl (\a, d => a + cast d) 0.0 doms
+      in if length doms == 0 then 0.0 else sumD / cast (length doms)
+
+    processFullOne : Bits32 -> IO (Maybe (Nat, Nat, Double, Double, Double, Nat))
+    processFullOne tt =
+      let cspData = buildCSPData 4 3 4 tt
+          res = cspResult cspData
+          (ib, nc, b1, comp, nodes, nEdges, ccm) = computeTopology cspData
+          avgCF = ccAvgCompat ccm
+          maxCF = foldl (\a, f => if f > a then f else a) 0.0
+                    (map (crCompatFraction . communicationComplexity) (cspEdgeGroups cspData))
+          avgDom = avgDomSize cspData
+          mResult = if emptyDomainNodes res > 0
+                    then Just (Just (the Nat 0), Just (the Nat 0))
+                    else case solveWithCertFuel cspData 50000 of
+                           Nothing => Nothing
+                           Just (Left _) => Just (Nothing, Nothing)
+                           Just (Right cert) => Just (Just (certSize cert), Just (certDepth cert))
+      in case mResult of
+           Nothing => do
+             putStrLn $ "  " ++ toHex tt ++ " | TIMEOUT | - | "
+               ++ showDouble4 avgCF ++ " | " ++ showDouble4 maxCF
+               ++ " | " ++ showDouble4 avgDom ++ " | " ++ show b1 ++ " | -"
+             fflush stdout
+             pure Nothing
+           Just (Nothing, _) => pure Nothing  -- SAT
+           Just (Just 0, _) => pure Nothing  -- empty domain
+           Just (Just cSize, mDepth) =>
+             let depth : Nat = case mDepth of Nothing => 0; Just dep => dep
+                 -- Branching bound: (avgDom * avgCF)^depth
+                 branchFactor = avgDom * avgCF
+                 branchBound = exp (cast depth * log (max branchFactor 0.01))
+             in do putStrLn $ "  " ++ toHex tt
+                     ++ " | " ++ show cSize
+                     ++ " | " ++ show depth
+                     ++ " | " ++ showDouble4 avgCF
+                     ++ " | " ++ showDouble4 maxCF
+                     ++ " | " ++ showDouble4 avgDom
+                     ++ " | " ++ show b1
+                     ++ " | " ++ showDouble4 branchBound
+                   fflush stdout
+                   pure (Just (cSize, depth, avgCF, maxCF, avgDom, b1))
+
+    runFull : List Bits32 -> IO ()
+    runFull tts = do
+      putStrLn $ "  Full mode (fuel=50000): " ++ show (length tts) ++ " instances"
+      putStrLn ""
+      putStrLn "  TT       | cert  | dep | avg_cf  | max_cf  | avgDom | B1 | branch_bnd"
+      putStrLn "  ---------+-------+-----+---------+---------+--------+----+-----------"
+      results <- traverse processFullOne tts
+      let valid = mapMaybe id results
+      putStrLn ""
+      let trivial = filter (\(cs, _, _, _, _, _) => cs <= 10) valid
+      let hard = filter (\(cs, _, _, _, _, _) => cs > 10) valid
+      let timedOut = length tts `minus` length valid
+      putStrLn $ "  Results: " ++ show (length valid) ++ " UNSAT, "
+                 ++ show timedOut ++ " timed out / SAT"
+      putStrLn $ "  Trivial (cert<=10): " ++ show (length trivial)
+      putStrLn $ "  Hard (cert>10):     " ++ show (length hard)
+      putStrLn ""
+      -- avgCF correlation
+      let trivCFs = map (\(_, _, acf, _, _, _) => acf) trivial
+      let hardCFs = map (\(_, _, acf, _, _, _) => acf) hard
+      let trivAvg = if length trivCFs == 0 then 0.0
+                    else foldl (+) 0.0 trivCFs / cast (length trivCFs)
+      let hardAvg = if length hardCFs == 0 then 0.0
+                    else foldl (+) 0.0 hardCFs / cast (length hardCFs)
+      putStrLn $ "  Avg compatFrac: trivial=" ++ showDouble4 trivAvg
+                 ++ " hard=" ++ showDouble4 hardAvg
+      -- maxCF correlation
+      let trivMaxCFs = map (\(_, _, _, mcf, _, _) => mcf) trivial
+      let hardMaxCFs = map (\(_, _, _, mcf, _, _) => mcf) hard
+      let trivMxAvg = if length trivMaxCFs == 0 then 0.0
+                      else foldl (+) 0.0 trivMaxCFs / cast (length trivMaxCFs)
+      let hardMxAvg = if length hardMaxCFs == 0 then 0.0
+                      else foldl (+) 0.0 hardMaxCFs / cast (length hardMaxCFs)
+      putStrLn $ "  Avg maxCompatFrac: trivial=" ++ showDouble4 trivMxAvg
+                 ++ " hard=" ++ showDouble4 hardMxAvg
+      -- avgDomSize
+      let trivDoms = map (\(_, _, _, _, ad, _) => ad) trivial
+      let hardDoms = map (\(_, _, _, _, ad, _) => ad) hard
+      let trivDomAvg = if length trivDoms == 0 then 0.0
+                       else foldl (+) 0.0 trivDoms / cast (length trivDoms)
+      let hardDomAvg = if length hardDoms == 0 then 0.0
+                       else foldl (+) 0.0 hardDoms / cast (length hardDoms)
+      putStrLn $ "  Avg domSize: trivial=" ++ showDouble4 trivDomAvg
+                 ++ " hard=" ++ showDouble4 hardDomAvg
+
+    runCertAnalysis : String -> Nat -> Bool -> IO ()
+    runCertAnalysis fPath sampleN infoOnlyMode = do
+      Right content <- readFile fPath
+        | Left err => putStrLn $ "Error reading file: " ++ show err
+      let allTTs = mapMaybe parseTTLine (lines content)
+      putStrLn $ "Certificate analysis (Approach 1): " ++ fPath
+      putStrLn $ "  " ++ show (length allTTs) ++ " truth tables in file"
+      let sample = take sampleN allTTs
+      if infoOnlyMode
+        then runInfoOnly sample
+        else runFull sample
